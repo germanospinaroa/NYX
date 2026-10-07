@@ -25,7 +25,7 @@ Evolution es un proveedor de canal y no el núcleo del dominio.
 
 ## Estado actual
 
-FASE 1 — READY FOR AUTHENTICATED E2E VERIFICATION
+FASE 1 — BULK INGESTION REFACTOR READY FOR MIGRATION
 
 La aplicación Next.js, el flujo de ingestión, la migración reproducible y las
 pruebas puras están preparados. El proyecto Supabase configurado en
@@ -34,6 +34,10 @@ pruebas puras están preparados. El proyecto Supabase configurado en
 bloqueado para inserts, pero esta sesión no tiene las credenciales ni una
 sesión del usuario owner de prueba; por eso login, persistencia autenticada,
 aislamiento RLS y el flujo E2E todavía no pueden declararse verificados.
+
+La importación fue rediseñada para staging bulk y finalización set-based. La
+nueva migración `20261007190000_bulk_finalize_contact_import.sql` debe aplicarse
+antes de desplegar esta versión; no se ha ejecutado desde Codex.
 
 Acción pendiente: ejecutar las pruebas con una sesión del usuario owner de
 prueba, sin guardar su password en Git ni documentación. No se requiere
@@ -57,9 +61,10 @@ Plugin nativo de Codex `ecc@ecc`, versión `2.2.3`, revisión `ef648e01899ba3e8d
 
 ## Último milestone
 
-Aplicación inicial de Database + Contacts + Ingestion preparada; schema remoto
-observado y bloqueada únicamente por verificación autenticada E2E pendiente.
+Aplicación inicial de Database + Contacts + Ingestion preparada; refactor de
+bulk staging/set-based finalization implementado, pendiente de migración y
+verificación E2E.
 
 ## Siguiente fase
 
-FASE 1 — Database + Contacts + Ingestion (READY FOR AUTHENTICATED E2E VERIFICATION)
+FASE 1 — Database + Contacts + Ingestion (BULK REFACTOR READY FOR MIGRATION)
