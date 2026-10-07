@@ -25,7 +25,19 @@ Evolution es un proveedor de canal y no el núcleo del dominio.
 
 ## Estado actual
 
-FASE 0 COMPLETE
+FASE 1 — READY FOR AUTHENTICATED E2E VERIFICATION
+
+La aplicación Next.js, el flujo de ingestión, la migración reproducible y las
+pruebas puras están preparados. El proyecto Supabase configurado en
+`.env.local` responde y las tablas `contacts`, `contact_imports` y
+`contact_import_rows` ya existen en su Data API. El acceso anónimo está
+bloqueado para inserts, pero esta sesión no tiene las credenciales ni una
+sesión del usuario owner de prueba; por eso login, persistencia autenticada,
+aislamiento RLS y el flujo E2E todavía no pueden declararse verificados.
+
+Acción pendiente: ejecutar las pruebas con una sesión del usuario owner de
+prueba, sin guardar su password en Git ni documentación. No se requiere
+modificar `.env.local` para las claves públicas actuales.
 
 Fase 0 verificó conexión/versionado, connection state de una instancia
 dedicada, number check, sendText, sendMedia y el contrato observado de
@@ -45,8 +57,9 @@ Plugin nativo de Codex `ecc@ecc`, versión `2.2.3`, revisión `ef648e01899ba3e8d
 
 ## Último milestone
 
-Evolution Contract Spike completado.
+Aplicación inicial de Database + Contacts + Ingestion preparada; schema remoto
+observado y bloqueada únicamente por verificación autenticada E2E pendiente.
 
 ## Siguiente fase
 
-FASE 1 — Database + Contacts + Ingestion
+FASE 1 — Database + Contacts + Ingestion (READY FOR AUTHENTICATED E2E VERIFICATION)
