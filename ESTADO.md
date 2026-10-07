@@ -25,7 +25,13 @@ Evolution es un proveedor de canal y no el núcleo del dominio.
 
 ## Estado actual
 
-BOOTSTRAP
+FASE 0 COMPLETE
+
+Fase 0 verificó conexión/versionado, connection state de una instancia
+dedicada, number check, sendText, sendMedia y el contrato observado de
+webhooks. Retries operacionales, caída real, restart/reconnect y provider
+idempotency key quedan explícitamente como no verificados y no bloquean el
+cierre del spike.
 
 ## ECC
 
@@ -33,8 +39,14 @@ Plugin nativo de Codex `ecc@ecc`, versión `2.2.3`, revisión `ef648e01899ba3e8d
 
 ## Decisiones pendientes
 
-Ninguna decisión adicional cerrada como requisito del bootstrap.
+- Diseño detallado de la inbox idempotente de webhooks para Fase 4.
+- Confirmación futura del digest contra el registry antes de infraestructura.
+- Soporte de idempotency key del proveedor: no verificado.
 
 ## Último milestone
 
-Bootstrap inicial.
+Evolution Contract Spike completado.
+
+## Siguiente fase
+
+FASE 1 — Database + Contacts + Ingestion

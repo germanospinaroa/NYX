@@ -1,0 +1,155 @@
+{
+  "provenance": "observed",
+  "observedAt": "2026-10-07",
+  "sanitized": true,
+  "root": {
+    "method": "GET",
+    "path": "/",
+    "status": 200,
+    "responseShape": {
+      "status": "number",
+      "message": "string",
+      "version": "string",
+      "clientName": "string",
+      "whatsappWebVersion": "string"
+    },
+    "observedValues": {
+      "status": 200,
+      "message": "Welcome to the Evolution API, it is working!",
+      "version": "2.3.7",
+      "clientName": "evolution_exchange",
+      "whatsappWebVersion": "[REDACTED_VERSION]"
+    }
+  },
+  "fetchInstancesWithoutAuth": {
+    "method": "GET",
+    "path": "/instance/fetchInstances",
+    "status": 401,
+    "responseShape": {
+      "status": "number",
+      "error": "string",
+      "response": "object"
+    }
+  },
+  "fetchInstancesWithInvalidAuth": {
+    "method": "GET",
+    "path": "/instance/fetchInstances",
+    "status": 401,
+    "responseShape": "object"
+  },
+  "dedicatedConnectionStateWithInvalidAuth": {
+    "method": "GET",
+    "path": "/instance/connectionState/{dedicated-instance}",
+    "status": 404,
+    "responseShape": {
+      "status": "number",
+      "error": "string",
+      "response": "object"
+    },
+    "note": "Not evidence of a valid lifecycle or authentication success."
+  },
+  "nyxContractTestConnectionStateObserved": {
+    "method": "GET",
+    "path": "/instance/connectionState/{dedicated-instance}",
+    "status": 200,
+    "responseShape": {
+      "instance": {
+        "instanceName": "string",
+        "state": "string"
+      }
+    },
+    "observedValues": {
+      "instanceName": "nyx-contract-test",
+      "state": "open"
+    }
+  },
+  "numberCheckObserved": {
+    "method": "POST",
+    "path": "/chat/whatsappNumbers/{dedicated-instance}",
+    "httpStatus": "[REDACTED_STATUS]",
+    "responseShape": {
+      "exists": "boolean",
+      "jid": "string"
+    },
+    "observedValues": {
+      "exists": true,
+      "jid": "[REDACTED_JID]"
+    },
+    "note": "Observed JID used the @s.whatsapp.net form; no LID appeared."
+  },
+  "sendTextObserved": {
+    "method": "POST",
+    "path": "/message/sendText/{dedicated-instance}",
+    "status": 201,
+    "responseShape": {
+      "key": {
+        "id": "[REDACTED_PROVIDER_MESSAGE_ID]",
+        "remoteJid": "[REDACTED_JID]",
+        "fromMe": "boolean"
+      },
+      "status": "string",
+      "messageTimestamp": "number",
+      "instanceId": "[REDACTED_INSTANCE_ID]"
+    },
+    "observedValues": {
+      "fromMe": true,
+      "status": "PENDING",
+      "messageTimestamp": "[REDACTED_TIMESTAMP]"
+    }
+  },
+  "sendMediaImageCaptionObserved": {
+    "method": "POST",
+    "path": "/message/sendMedia/{dedicated-instance}",
+    "status": 201,
+    "responseShape": {
+      "messageType": "string",
+      "messageTimestamp": "number",
+      "instanceId": "[REDACTED_INSTANCE_ID]",
+      "source": "string"
+    },
+    "observedValues": {
+      "messageType": "imageMessage",
+      "messageTimestamp": "[REDACTED_TIMESTAMP]",
+      "source": "web"
+    }
+  },
+  "webhookContractObserved": {
+    "configuration": {
+      "enabled": true,
+      "byEvents": false,
+      "base64": false,
+      "events": [
+        "SEND_MESSAGE",
+        "SEND_MESSAGE_UPDATE",
+        "MESSAGES_UPSERT",
+        "MESSAGES_UPDATE",
+        "CONNECTION_UPDATE"
+      ]
+    },
+    "security": {
+      "totalEvents": 7,
+      "jwtValid": true,
+      "customHeaderValid": true
+    },
+    "eventCounts": {
+      "send.message": 1,
+      "messages.update": 5,
+      "messages.upsert": 1
+    },
+    "sequence": [
+      { "event": "send.message", "status": "PENDING", "providerId": true, "remoteJid": true },
+      { "event": "messages.update", "status": "DELIVERY_ACK" },
+      { "event": "messages.update", "status": "SERVER_ACK" },
+      { "event": "messages.update", "status": "DELIVERY_ACK" },
+      { "event": "messages.update", "status": "READ" },
+      { "event": "messages.upsert", "status": "DELIVERY_ACK", "providerId": true, "remoteJid": true },
+      { "event": "messages.update", "status": "SERVER_ACK" }
+    ],
+    "notes": [
+      "DELIVERY_ACK and SERVER_ACK repeated.",
+      "messages.upsert followed the authorized reply; direction field was not preserved in sanitized summary.",
+      "No provider event id was observed.",
+      "No LID appeared during these tests."
+    ]
+  }
+}
