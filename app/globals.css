@@ -29,3 +29,20 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
 .filter-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .table-scroll { overflow: auto; padding: 0; }
 .table-scroll table { min-width: 1250px; }
+.review-save-bar { position: sticky; top: 12px; z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border: 1px solid #c7d2fe; border-radius: 10px; background: #eef2ff; box-shadow: 0 8px 20px #17203318; }
+.review-save-bar span { color: var(--muted); flex: 1; }
+.sticky-col { position: sticky; z-index: 3; background: white; }
+thead .sticky-col { z-index: 5; background: #f8fafc; }
+.sticky-check { left: 0; min-width: 52px; width: 52px; }
+.sticky-name { left: 52px; min-width: 180px; width: 180px; }
+.sticky-phone { left: 232px; min-width: 155px; width: 155px; box-shadow: 5px 0 8px -8px #17203380; }
+.row-dirty .sticky-col { background: #fffbeb; }
+.row-state { display: inline-block; white-space: nowrap; color: var(--muted); }
+.state-modificado { color: #92400e; font-weight: 600; }
+.state-revisado { color: #067647; }
+.state-inválido { color: #b42318; }
+.state-excluido { color: #667085; text-decoration: line-through; }
+@media (max-width: 760px) {
+  .sticky-name { min-width: 145px; width: 145px; }
+  .sticky-phone { left: 197px; min-width: 135px; width: 135px; }
+}

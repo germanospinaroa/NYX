@@ -57,4 +57,26 @@ describe('prepareImport', () => {
       ['MALE', null, 'PENDING'], ['FEMALE', null, 'PENDING'],
     ])
   })
+
+  it('promotes only explicit PRECLASSIFIED suggestions to reviewed final gender', () => {
+    const result = prepareImport([
+      { Name: 'Synthetic Male', Phone: '+442079460003', 'Gender Suggestion': 'MALE', 'Gender Confidence': 'HIGH', 'Gender Review': 'PRECLASSIFIED' },
+      { Name: 'Synthetic Female', Phone: '+442079460004', 'Gender Suggestion': 'FEMALE', 'Gender Confidence': 'MEDIUM', 'Gender Review': 'PRECLASSIFIED' },
+    ], { name: 'Name', phone: 'Phone', genderSuggestion: 'Gender Suggestion', genderConfidence: 'Gender Confidence', genderReview: 'Gender Review' }, new Set(), 'CO')
+
+    expect(result.rows.map((row) => [row.genderSuggestion, row.genderFinal, row.genderReviewStatus])).toEqual([
+      ['MALE', 'MALE', 'REVIEWED'], ['FEMALE', 'FEMALE', 'REVIEWED'],
+    ])
+  })
+
+  it('keeps REVIEW and external review markers pending', () => {
+    const result = prepareImport([
+      { Name: 'Synthetic Review', Phone: '+442079460005', 'Gender Suggestion': 'MALE', 'Gender Review': 'REVIEW' },
+      { Name: 'Synthetic External', Phone: '+442079460006', 'Gender Suggestion': 'FEMALE', 'Gender Review': 'REVIEWED' },
+    ], { name: 'Name', phone: 'Phone', genderSuggestion: 'Gender Suggestion', genderReview: 'Gender Review' }, new Set(), 'CO')
+
+    expect(result.rows.map((row) => [row.genderFinal, row.genderReviewStatus])).toEqual([
+      [null, 'PENDING'], [null, 'PENDING'],
+    ])
+  })
 })

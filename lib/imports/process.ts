@@ -116,15 +116,15 @@ function initialGender(
 ): Pick<PreparedImportRow, 'genderSuggestion' | 'genderConfidence' | 'genderFinal' | 'genderReviewStatus'> {
   const suggestion = parseGender(mapping.genderSuggestion ? sourceRow[mapping.genderSuggestion] : '')
   const confidence = parseConfidence(mapping.genderConfidence ? sourceRow[mapping.genderConfidence] : '')
-  // A file-provided review marker is input evidence, not a NYX user action.
-  // Only the review workspace can create REVIEWED state.
+  const reviewMarker = parseReviewMarker(mapping.genderReview ? sourceRow[mapping.genderReview] : '')
+  const isPreclassified = reviewMarker === 'PRECLASSIFIED' && (suggestion === 'MALE' || suggestion === 'FEMALE')
   return {
     genderSuggestion: suggestion,
     genderConfidence: confidence,
-    // No gender columns means an explicit unknown, while a suggestion is
-    // never promoted to final without review in NYX.
-    genderFinal: hasGenderColumns ? null : 'UNKNOWN',
-    genderReviewStatus: 'PENDING',
+    // PRECLASSIFIED is an explicit upstream contract. Other file markers,
+    // including REVIEW/REVIEWED, are never treated as a NYX decision.
+    genderFinal: isPreclassified ? suggestion : hasGenderColumns ? null : 'UNKNOWN',
+    genderReviewStatus: isPreclassified ? 'REVIEWED' : 'PENDING',
   }
 }
 
@@ -145,5 +145,12 @@ export function parseConfidence(value: string): GenderConfidence | null {
   if (['HIGH', 'ALTA', 'ALTO'].includes(token)) return 'HIGH'
   if (['MEDIUM', 'MEDIA', 'MEDIO'].includes(token)) return 'MEDIUM'
   if (['LOW', 'BAJA', 'BAJO'].includes(token)) return 'LOW'
+  return null
+}
+
+export function parseReviewMarker(value: string): 'PRECLASSIFIED' | 'REVIEW' | null {
+  const token = normalizeToken(value)
+  if (token === 'PRECLASSIFIED') return 'PRECLASSIFIED'
+  if (token === 'REVIEW') return 'REVIEW'
   return null
 }

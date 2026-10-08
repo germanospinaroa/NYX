@@ -25,7 +25,7 @@ Evolution es un proveedor de canal y no el núcleo del dominio.
 
 ## Estado actual
 
-FASE 1 — REVIEW WORKSPACE VERIFICADO; HARDENING PENDIENTE
+FASE 1 — REVIEW WORKSPACE + HARDENING VERIFICADOS; UX PENDING
 
 La aplicación Next.js, el flujo de ingestión, la migración reproducible y las
 pruebas puras están preparados. El proyecto Supabase configurado en
@@ -38,13 +38,13 @@ aislamiento RLS y el flujo E2E todavía no pueden declararse verificados.
 La importación fue rediseñada para staging bulk, revisión paginada y
 finalización set-based. Las migraciones bulk y review workspace ya fueron
 aplicadas manualmente en Supabase. La nueva migration
-`20261008120000_harden_rpc_grants_and_rls.sql` queda preparada, pero todavía
-no se ha aplicado.
+`20261008120000_harden_rpc_grants_and_rls.sql` también fue aplicada y
+verificada contra Supabase real.
 
-Acción pendiente: reparar el historial remoto con la CLI oficial de Supabase,
-aplicar la migration de hardening y verificar `pg_proc.proacl`/policies con una
-sesión owner. La CLI no está disponible en este entorno y no existe
-`supabase/config.toml`; no se manipuló el historial manualmente.
+La CLI de Supabase no está disponible en este entorno y no existe
+`supabase/config.toml`; el historial remoto queda pendiente de reconciliación
+antes de futuras automatizaciones. Las policies, grants y RPCs fueron
+verificados externamente contra Supabase real.
 
 Fase 0 verificó conexión/versionado, connection state de una instancia
 dedicada, number check, sendText, sendMedia y el contrato observado de
@@ -65,9 +65,10 @@ Plugin nativo de Codex `ecc@ecc`, versión `2.2.3`, revisión `ef648e01899ba3e8d
 ## Último milestone
 
 Review workspace, gender review, labels y contacts UI implementados sobre el
-refactor bulk y verificados contra el schema real; hardening de grants/RLS
-preparado localmente, pendiente de reparación del historial y aplicación.
+refactor bulk y verificados contra el schema real. La corrección de
+preclasificación explícita y guardado batch queda preparada localmente para
+QA, sin deploy en este milestone.
 
 ## Siguiente fase
 
-FASE 1 — Database + Contacts + Ingestion (HARDENING PENDING)
+FASE 1 — Database + Contacts + Ingestion (REVIEW UX PENDING)

@@ -212,7 +212,7 @@ async function findImport(supabase: SupabaseClient, ownerId: string, idempotency
   return data as ImportRecord | null
 }
 
-function toStagingRow(ownerId: string, importId: string, row: PreparedImportRow): StagingRow {
+export function toStagingRow(ownerId: string, importId: string, row: PreparedImportRow): StagingRow {
   const included = row.result === 'VALID' || row.result === 'MATCHED_EXISTING'
   const ready = included && row.genderReviewStatus === 'REVIEWED' && row.genderFinal !== null
   return {

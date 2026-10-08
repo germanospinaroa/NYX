@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { ImportOutcomeUnknownError, SupabaseTimeoutError, persistPreparedImport, stageRowsInBatches, withTimeout } from './persistence'
+import { ImportOutcomeUnknownError, SupabaseTimeoutError, persistPreparedImport, stageRowsInBatches, toStagingRow, withTimeout } from './persistence'
 import type { ImportPreparation } from './process'
+import { prepareImport } from './process'
 
 function fakeSupabase() {
   const calls: Array<{ operation: string; table?: string; count?: number }> = []
@@ -32,6 +33,20 @@ function fakeSupabase() {
 }
 
 describe('persistPreparedImport bulk transport', () => {
+  it('marks PRECLASSIFIED rows ready while REVIEW rows remain pending', () => {
+    const preclassified = prepareImport(
+      [{ Name: 'Synthetic', Phone: '+442079460007', Suggestion: 'MALE', Review: 'PRECLASSIFIED' }],
+      { name: 'Name', phone: 'Phone', genderSuggestion: 'Suggestion', genderReview: 'Review' }, new Set(), 'CO',
+    ).rows[0]
+    const review = prepareImport(
+      [{ Name: 'Synthetic', Phone: '+442079460008', Suggestion: 'MALE', Review: 'REVIEW' }],
+      { name: 'Name', phone: 'Phone', genderSuggestion: 'Suggestion', genderReview: 'Review' }, new Set(), 'CO',
+    ).rows[0]
+
+    expect(toStagingRow('owner-id', 'import-id', preclassified)).toMatchObject({ gender_final: 'MALE', gender_review_status: 'REVIEWED', row_is_ready: true })
+    expect(toStagingRow('owner-id', 'import-id', review)).toMatchObject({ gender_final: null, gender_review_status: 'PENDING', row_is_ready: false })
+  })
+
   it('classifies an ambiguous import creation timeout without inventing an import id', async () => {
     const client = {
       from(table: string) {

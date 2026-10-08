@@ -40,20 +40,20 @@ máximo de 50 visibles, permite corregir nombre, teléfono, género e inclusión
 y usa RPCs set-based para acciones masivas. La finalización solo acepta filas
 incluidas, válidas y con `gender_review_status=REVIEWED` y `gender_final` no
 nulo. Los archivos sin columnas de género reciben `gender_final=UNKNOWN` pero
-`gender_review_status=PENDING`; una sugerencia importada nunca se convierte
-sola en dato final. `REVIEWED` solo aparece después de una acción explícita en
-el workspace.
+`gender_review_status=PENDING`. Una sugerencia externa solo se promueve cuando
+el archivo declara explícitamente `Gender Review=PRECLASSIFIED` y la sugerencia
+es `MALE` o `FEMALE`; `REVIEW`, `REVIEWED` u otro marcador permanece pendiente.
+Los cambios manuales se conservan localmente y se guardan mediante una única
+operación batch por lote.
 
 Las etiquetas son many-to-many mediante `labels` y `contact_labels`, con FKs
-compuestas por owner y acciones bulk para agregar/quitar. La nueva migración
-`20261008100000_review_workspace_gender_labels.sql` debe aplicarse en Supabase
-antes de usar esta versión.
+compuestas por owner y acciones bulk para agregar/quitar. Las migrations de
+review workspace y hardening ya fueron aplicadas en el proyecto NYX.
 
 Las migraciones base y bulk anteriores ya fueron aplicadas en el proyecto NYX.
-La migración incremental `20261008100000_review_workspace_gender_labels.sql`
-debe aplicarse una sola vez antes de desplegar este flujo de revisión; mientras
-no se aplique, la aplicación debe considerarse pendiente de verificación real.
-Persistencia autenticada y policies RLS siguen pendientes de prueba E2E.
+La migration incremental se aplica una sola vez; las futuras correcciones deben
+usar migrations forward-only. Persistencia autenticada y policies RLS fueron
+verificadas contra Supabase real.
 
 Revisión de dependencia XLSX (2026-10-07): `npm audit --omit=dev` identifica
 `GHSA-w5hq-g745-h8pq` en `uuid@8.3.2`, transitiva de `exceljs@4.4.0`.
