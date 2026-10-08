@@ -25,7 +25,7 @@ Evolution es un proveedor de canal y no el núcleo del dominio.
 
 ## Estado actual
 
-FASE 3B — CORE OPERATIONS IMPLEMENTADAS LOCALMENTE; MIGRACIÓN PENDIENTE
+FASE 3B — CORE OPERATIONS RELEASE HARDENING LOCAL; MIGRACIÓN PENDIENTE
 
 La aplicación Next.js, el flujo de ingestión, la migración reproducible y las
 pruebas puras están preparados. El proyecto Supabase configurado en
@@ -47,6 +47,12 @@ recipients, outbox, worker persistente y adapter Evolution. La migration
 `20261008150000_core_operations.sql` todavía no se ha aplicado remotamente por
 instrucción; por ello no se declara listo para producción ni se han ejecutado
 envíos reales.
+
+El hardening forward-only `20261008160000_harden_core_operations.sql` corrige
+el límite de confirmación: un snapshot queda READY, `queue_campaign` es la
+única transición explícita a QUEUED, el claim acepta solo campañas QUEUED/RUNNING,
+y el worker reconcilia RUNNING/COMPLETED/FAILED y estados de recipients. Esta
+migration tampoco se ha ejecutado remotamente.
 
 La CLI de Supabase no está disponible en este entorno y no existe
 `supabase/config.toml`; el historial remoto queda pendiente de reconciliación

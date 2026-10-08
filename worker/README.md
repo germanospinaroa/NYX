@@ -26,3 +26,7 @@ ejecuta automáticamente desde Next.js.
 Un timeout después de que Evolution pudo recibir el request se marca como
 `OUTCOME_UNKNOWN`; el worker no reintenta automáticamente ni hace un segundo
 POST ciego.
+
+El worker solo reclama mensajes individuales `QUEUED` o campañas en estado
+`QUEUED`/`RUNNING`. Crear el snapshot deja la campaña en `READY`; el usuario
+debe pulsar `Enviar campaña` para ejecutar `queue_campaign`.

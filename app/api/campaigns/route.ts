@@ -20,8 +20,6 @@ export async function POST(request: Request) {
     if (error || !campaign) return NextResponse.json({ error: 'CAMPAIGN_CREATE_FAILED' }, { status: 400 })
     const snapshot = await supabase.rpc('create_campaign_snapshot', { p_campaign_id: campaign.id, p_contact_ids: resolved.ids })
     if (snapshot.error) return NextResponse.json({ error: 'CAMPAIGN_SNAPSHOT_FAILED' }, { status: 400 })
-    const { data: queued, error: queueError } = await supabase.from('campaigns').update({ status: 'QUEUED' }).eq('owner_id', user.id).eq('id', campaign.id).select('id, status').single()
-    if (queueError) return NextResponse.json({ error: 'CAMPAIGN_QUEUE_FAILED' }, { status: 400 })
-    return NextResponse.json({ campaign: queued, recipients: snapshot.data }, { status: 201 })
+    return NextResponse.json({ campaign: { id: campaign.id, status: 'READY' }, recipients: snapshot.data }, { status: 201 })
   } catch (error) { const message = error instanceof Error && error.message === 'UNAUTHORIZED' ? error.message : 'CAMPAIGN_CREATE_FAILED'; return NextResponse.json({ error: message }, { status: message === 'UNAUTHORIZED' ? 401 : 400 }) }
 }

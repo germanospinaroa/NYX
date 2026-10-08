@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { EvolutionHttpAdapter } from './evolution-http-adapter'
 import { OutcomeUnknownError } from '../lib/evolution/adapter'
 
-type OutboxMessage = { id: string; destination: string; message_text: string; media_path?: string | null; campaign_recipient_id?: string | null }
+type OutboxMessage = { id: string; campaign_id?: string | null; destination: string; message_text: string; media_path?: string | null; campaign_recipient_id?: string | null }
 
 export async function processOutboxOnce(adapter = new EvolutionHttpAdapter()) {
   const supabase = createWorkerClient()
@@ -23,6 +23,7 @@ export async function processOutboxOnce(adapter = new EvolutionHttpAdapter()) {
        const { data: failedPersisted } = await supabase.from('messages').update({ status: unknown ? 'OUTCOME_UNKNOWN' : 'FAILED', last_error_code: unknown ? 'OUTCOME_UNKNOWN' : 'PROVIDER_FAILED', last_error_message: unknown ? null : 'Provider rejected dispatch', updated_at: new Date().toISOString() }).eq('id', message.id).eq('status', 'SENDING').select('id').maybeSingle()
        if (failedPersisted && message.campaign_recipient_id) await supabase.from('campaign_recipients').update({ status: unknown ? 'OUTCOME_UNKNOWN' : 'FAILED' }).eq('id', message.campaign_recipient_id).eq('status', 'QUEUED')
     }
+    if (message.campaign_id) await supabase.rpc('refresh_campaign_status', { p_campaign_id: message.campaign_id })
     await pacing()
   }
   return messages.length
