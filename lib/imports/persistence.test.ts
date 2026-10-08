@@ -92,7 +92,7 @@ describe('persistPreparedImport bulk transport', () => {
       '00000000-0000-4000-8000-000000000004',
     )
     expect(result.importId).toBe('failed-import')
-    expect(updates[0]).toEqual({ status: 'PROCESSING', staging_complete: false })
+    expect(updates[0]).toEqual({ status: 'STAGING', staging_complete: false })
   })
 
   it('classifies a slow remote operation as a timeout', async () => {
@@ -114,6 +114,10 @@ describe('persistPreparedImport bulk transport', () => {
       firstName: 'Person',
       phoneE164: `+57300${String(index).padStart(7, '0')}`,
       phoneCountry: 'CO',
+      genderSuggestion: null,
+      genderConfidence: null,
+      genderFinal: 'UNKNOWN' as const,
+      genderReviewStatus: 'REVIEWED' as const,
       result: 'VALID' as const,
     }))
     const preparation: ImportPreparation = {
@@ -123,10 +127,10 @@ describe('persistPreparedImport bulk transport', () => {
     const { client, calls } = fakeSupabase()
     const result = await persistPreparedImport(client as never, 'owner-id', 'contacts.csv', 'CSV', preparation, '00000000-0000-4000-8000-000000000001')
 
-    expect(result.createdContacts).toBe(5000)
+    expect(result.stagedRows).toBe(5000)
     expect(calls.filter((call) => call.operation === 'insert' && call.table === 'contact_imports')).toHaveLength(1)
     expect(calls.filter((call) => call.operation === 'upsert' && call.table === 'contact_import_rows').length).toBeLessThanOrEqual(8)
-    expect(calls.filter((call) => call.operation.startsWith('rpc:'))).toHaveLength(1)
+    expect(calls.filter((call) => call.operation.startsWith('rpc:'))).toHaveLength(2)
     expect(calls.some((call) => call.table === 'contacts')).toBe(false)
     expect(calls.filter((call) => call.operation === 'update' && call.table === 'contact_import_rows')).toHaveLength(0)
     // One lookup, one import row, seven staging batches, one state update and
@@ -149,7 +153,7 @@ describe('persistPreparedImport bulk transport', () => {
     }
     const result = await persistPreparedImport(client as never, 'owner-id', 'contacts.csv', 'CSV', { rows: [], summary: { total: 0, valid: 0, invalid: 0, duplicateInFile: 0, matchedExisting: 0 } }, '00000000-0000-4000-8000-000000000002')
     expect(result.importId).toBe('existing-import')
-    expect(result.createdContacts).toBe(4)
+    expect(result.stagedRows).toBe(0)
     expect(calls).toEqual([])
   })
 })

@@ -16,6 +16,13 @@ describe('column mapping', () => {
     })
   })
 
+  it('detects optional gender review columns without requiring them', () => {
+    expect(autoDetectMapping(['Name', 'Phone', 'Gender Suggestion', 'Gender Confidence', 'Gender Review'])).toEqual({
+      name: 'Name', phone: 'Phone', genderSuggestion: 'Gender Suggestion',
+      genderConfidence: 'Gender Confidence', genderReview: 'Gender Review',
+    })
+  })
+
   it('requires two different existing columns for manual mapping', () => {
     expect(validateMapping(['Name', 'Phone'], { name: 'Name', phone: 'Phone' })).toBe(true)
     expect(validateMapping(['Name'], { name: 'Name', phone: 'Phone' })).toBe(false)

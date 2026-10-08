@@ -32,10 +32,26 @@ Decisiones de Alpha:
 - La aplicación devuelve requests, bytes enviados/recibidos, batches, filas y
   duración para observar el presupuesto de red.
 
-La migración base de `supabase/migrations/` ya fue aplicada en el proyecto NYX.
-La migración incremental `20261007190000_bulk_finalize_contact_import.sql`
-debe aplicarse una sola vez antes de desplegar este flujo bulk; mientras no se
-aplique, la aplicación debe considerarse pendiente de verificación real.
+## Review workspace
+
+La confirmación de un archivo solo crea `contact_import_rows` en staging; no
+crea contactos definitivos. `/app/imports/[id]/review` pagina las filas a un
+máximo de 50 visibles, permite corregir nombre, teléfono, género e inclusión,
+y usa RPCs set-based para acciones masivas. La finalización solo acepta filas
+incluidas, válidas y con `gender_review_status=REVIEWED` y `gender_final` no
+nulo. Los archivos sin columnas de género reciben explícitamente
+`UNKNOWN + REVIEWED`; una sugerencia importada nunca se convierte sola en dato
+final.
+
+Las etiquetas son many-to-many mediante `labels` y `contact_labels`, con FKs
+compuestas por owner y acciones bulk para agregar/quitar. La nueva migración
+`20261008100000_review_workspace_gender_labels.sql` debe aplicarse en Supabase
+antes de usar esta versión.
+
+Las migraciones base y bulk anteriores ya fueron aplicadas en el proyecto NYX.
+La migración incremental `20261008100000_review_workspace_gender_labels.sql`
+debe aplicarse una sola vez antes de desplegar este flujo de revisión; mientras
+no se aplique, la aplicación debe considerarse pendiente de verificación real.
 Persistencia autenticada y policies RLS siguen pendientes de prueba E2E.
 
 Revisión de dependencia XLSX (2026-10-07): `npm audit --omit=dev` identifica

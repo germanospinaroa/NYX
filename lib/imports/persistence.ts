@@ -12,6 +12,10 @@ export type StagingRow = {
   phone_e164: string | null
   result: PreparedImportRow['result']
   error_code: string | null
+  gender_suggestion: PreparedImportRow['genderSuggestion']
+  gender_confidence: PreparedImportRow['genderConfidence']
+  gender_final: PreparedImportRow['genderFinal']
+  gender_review_status: PreparedImportRow['genderReviewStatus']
   included: boolean
   row_is_ready: boolean
 }
@@ -112,7 +116,7 @@ export async function persistPreparedImport(
           idempotency_key: idempotencyKey,
           original_filename: safeFilename(filename),
           source_format: format,
-          status: 'PROCESSING',
+        status: 'STAGING',
           staging_complete: false,
           total_rows: preparation.summary.total,
           valid_rows: preparation.summary.valid,
@@ -136,7 +140,12 @@ export async function persistPreparedImport(
     }
   }
 
-  if (importRecord.status === 'COMPLETED') return completedResult(importRecord, metrics, startedAt)
+  if (importRecord.status === 'COMPLETED') return {
+    importId: importRecord.id,
+    stagedRows: 0,
+    summary: preparation.summary,
+    metrics: { ...metrics, durationMs: performance.now() - startedAt },
+  }
 
   const importId = importRecord.id
   const stagingRows = preparation.rows.map((row) => toStagingRow(ownerId, importId, row))
@@ -144,12 +153,12 @@ export async function persistPreparedImport(
     if (importRecord.status === 'FAILED') {
       const { error: reopenError } = await withTimeout(supabase
         .from('contact_imports')
-        .update({ status: 'PROCESSING', staging_complete: false })
+        .update({ status: 'STAGING', staging_complete: false })
         .eq('id', importId)
         .eq('owner_id', ownerId))
       metrics.remoteRequests += 1
       if (reopenError) throw new Error('IMPORT_REOPEN_FAILED')
-      importRecord = { ...importRecord, status: 'PROCESSING', staging_complete: false }
+      importRecord = { ...importRecord, status: 'STAGING', staging_complete: false }
     }
 
     if (!importRecord.staging_complete) {
@@ -163,31 +172,30 @@ export async function persistPreparedImport(
       metrics.batches = stageMetrics.batches
       metrics.remoteRequests += stageMetrics.remoteRequests
       metrics.bytesSent = stageMetrics.bytesSent
-      metrics.durationMs = performance.now() - startedAt
-
+      const { error: existingError } = await withTimeout(supabase
+        .rpc('resolve_contact_import_existing', { p_import_id: importId }))
+      metrics.remoteRequests += 1
+      if (existingError) throw new Error('IMPORT_EXISTING_RESOLUTION_FAILED')
       const { error: stagedError } = await withTimeout(supabase
         .from('contact_imports')
-        .update({ staging_complete: true })
+        .update({ staging_complete: true, status: 'REVIEW_REQUIRED' })
         .eq('id', importId)
         .eq('owner_id', ownerId))
       metrics.remoteRequests += 1
       if (stagedError) throw new Error('IMPORT_STAGING_STATE_FAILED')
-    }
 
-    const { data: finalized, error: finalizeError } = await withTimeout(supabase
-      .rpc('finalize_contact_import', { p_import_id: importId })
-      .single())
-    metrics.remoteRequests += 1
-    if (finalizeError || !finalized) throw new Error('IMPORT_FINALIZE_FAILED')
-    const result = finalized as { created_contacts: number; matched_existing_contacts: number; processed_rows: number }
-    metrics.bytesReceived = new TextEncoder().encode(JSON.stringify(result)).byteLength
+      const { error: refreshError } = await withTimeout(supabase
+        .rpc('refresh_contact_import_status', { p_import_id: importId }))
+      metrics.remoteRequests += 1
+      if (refreshError) throw new Error('IMPORT_STATUS_REFRESH_FAILED')
+    }
     metrics.durationMs = performance.now() - startedAt
-    return { importId, createdContacts: result.created_contacts, matchedExistingContacts: result.matched_existing_contacts, processedRows: result.processed_rows, metrics }
+    return { importId, stagedRows: stagingRows.length, summary: preparation.summary, metrics }
   } catch (error) {
     if (error instanceof SupabaseTimeoutError) throw new ImportOutcomeUnknownError(importId)
-    // Keep recoverable remote failures in PROCESSING. Marking the row FAILED
-    // here could race with another confirmation and invalidate its progress;
-    // the same idempotency key can safely retry staging/finalization instead.
+    // Keep recoverable remote failures in STAGING/REVIEW_REQUIRED. Marking the
+    // row FAILED here could race with another confirmation and invalidate its
+    // progress; the same idempotency key can safely retry the flow instead.
     throw error instanceof Error && error.message.startsWith('IMPORT_') ? error : new Error('IMPORT_FAILED')
   }
 }
@@ -204,19 +212,9 @@ async function findImport(supabase: SupabaseClient, ownerId: string, idempotency
   return data as ImportRecord | null
 }
 
-function completedResult(importRecord: ImportRecord, metrics: StagingMetrics, startedAt: number) {
-  metrics.durationMs = performance.now() - startedAt
-  return {
-    importId: importRecord.id,
-    createdContacts: importRecord.created_contacts,
-    matchedExistingContacts: importRecord.matched_existing_contacts,
-    processedRows: importRecord.created_contacts + importRecord.matched_existing_contacts,
-    metrics,
-  }
-}
-
 function toStagingRow(ownerId: string, importId: string, row: PreparedImportRow): StagingRow {
-  const ready = row.result === 'VALID' || row.result === 'MATCHED_EXISTING'
+  const included = row.result === 'VALID' || row.result === 'MATCHED_EXISTING'
+  const ready = included && row.genderReviewStatus === 'REVIEWED' && row.genderFinal !== null
   return {
     owner_id: ownerId,
     import_id: importId,
@@ -227,7 +225,11 @@ function toStagingRow(ownerId: string, importId: string, row: PreparedImportRow)
     phone_e164: row.phoneE164 ?? null,
     result: row.result,
     error_code: row.errorCode ?? null,
-    included: ready,
+    gender_suggestion: row.genderSuggestion,
+    gender_confidence: row.genderConfidence,
+    gender_final: row.genderFinal,
+    gender_review_status: row.genderReviewStatus,
+    included,
     row_is_ready: ready,
   }
 }

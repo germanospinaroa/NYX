@@ -14,7 +14,13 @@ export async function POST(request: Request) {
     if (!(file instanceof File)) return NextResponse.json({ error: 'FILE_REQUIRED' }, { status: 400 })
     const parsed = await parseContactFile(file)
     const detected = autoDetectMapping(parsed.headers)
-    const initialMapping = { name: detected.name ?? parsed.headers[0] ?? '', phone: detected.phone ?? parsed.headers[1] ?? '' }
+    const initialMapping = {
+      name: detected.name ?? parsed.headers[0] ?? '',
+      phone: detected.phone ?? parsed.headers[1] ?? '',
+      genderSuggestion: detected.genderSuggestion,
+      genderConfidence: detected.genderConfidence,
+      genderReview: detected.genderReview,
+    }
     if (!validateMapping(parsed.headers, initialMapping)) {
       return NextResponse.json({ format: parsed.format, headers: parsed.headers, mapping: initialMapping, preview: parsed.rows.slice(0, 5), summary: null })
     }

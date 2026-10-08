@@ -22,3 +22,10 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
 .error { color: #b42318; background: #fff1f0; border-radius: 8px; padding: 10px; }
 .success { color: #067647; background: #ecfdf3; border-radius: 8px; padding: 10px; }
 .nav { display: flex; gap: 12px; align-items: center; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.metric { display: grid; gap: 4px; }
+.metric strong { font-size: 24px; }
+.metric span { color: var(--muted); font-size: 13px; }
+.filter-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.table-scroll { overflow: auto; padding: 0; }
+.table-scroll table { min-width: 1250px; }

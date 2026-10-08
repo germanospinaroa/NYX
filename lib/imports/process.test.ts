@@ -31,4 +31,20 @@ describe('prepareImport', () => {
       'INVALID_PHONE',
     ])
   })
+
+  it('keeps suggestions separate from final gender and supports explicit unknown review', () => {
+    const result = prepareImport(
+      [{ Name: 'Synthetic A', Phone: '+442079460001', 'Gender Suggestion': 'FEMALE', 'Gender Confidence': 'HIGH' },
+       { Name: 'Synthetic B', Phone: '+442079460002', 'Gender Suggestion': 'MALE', 'Gender Review': 'REVIEWED' }],
+      { name: 'Name', phone: 'Phone', genderSuggestion: 'Gender Suggestion', genderConfidence: 'Gender Confidence', genderReview: 'Gender Review' },
+      new Set(), 'CO',
+    )
+    expect(result.rows[0]).toMatchObject({ genderSuggestion: 'FEMALE', genderConfidence: 'HIGH', genderFinal: null, genderReviewStatus: 'PENDING' })
+    expect(result.rows[1]).toMatchObject({ genderSuggestion: 'MALE', genderFinal: 'UNKNOWN', genderReviewStatus: 'REVIEWED' })
+  })
+
+  it('defaults files without gender columns to reviewed UNKNOWN', () => {
+    const result = prepareImport([{ Name: 'Synthetic A', Phone: '+442079460001' }], { name: 'Name', phone: 'Phone' }, new Set(), 'CO')
+    expect(result.rows[0]).toMatchObject({ genderFinal: 'UNKNOWN', genderReviewStatus: 'REVIEWED' })
+  })
 })

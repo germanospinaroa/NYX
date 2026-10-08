@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     // do not transfer the owner's contact set back to the browser.
     const prepared = prepareImport(parsed.rows, mapping as ColumnMapping, new Set(), process.env.DEFAULT_PHONE_REGION ?? 'CO')
     const result = await persistPreparedImport(supabase, user.id, file.name, parsed.format, prepared, parsedIdempotencyKey.data)
-    return NextResponse.json({ ...result, summary: prepared.summary })
+    return NextResponse.json({ ...result, summary: prepared.summary, reviewRequired: true })
   } catch (error) {
     if (error instanceof ImportOutcomeUnknownError) return NextResponse.json({ error: 'IMPORT_OUTCOME_UNKNOWN', importId: error.importId }, { status: 202 })
     const message = error instanceof Error && error.message === 'UNAUTHORIZED' ? error.message : 'IMPORT_FAILED'

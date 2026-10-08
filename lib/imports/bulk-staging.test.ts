@@ -13,6 +13,10 @@ describe('bulk staging transport budget', () => {
       phone_e164: `+57300${String(index).padStart(7, '0')}`,
       result: 'VALID',
       error_code: null,
+      gender_suggestion: null,
+      gender_confidence: null,
+      gender_final: 'UNKNOWN',
+      gender_review_status: 'REVIEWED',
       included: true,
       row_is_ready: true,
     }))
