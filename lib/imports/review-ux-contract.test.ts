@@ -26,4 +26,11 @@ describe('review workspace UX contract', () => {
     expect(component).toContain('>Nombre</th>')
     expect(component).not.toMatch(/<th[^>]*>Revisión<\/th>/u)
   })
+
+  it('turns a completed import into a contacts CTA without review controls', () => {
+    expect(component).toContain("data?.import.status === 'COMPLETED'")
+    expect(component).toContain('Ver contactos')
+    expect(component).toContain('review-completed')
+    expect(styles).toContain('.review-completed .review-controls')
+  })
 })

@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { requireUser } from '@/lib/supabase/user'
 import { isSameOrigin } from '@/lib/security/request'
 
-const schema = z.object({ name: z.string().trim().min(1).max(80), color: z.string().trim().max(20).optional() })
+const schema = z.object({ name: z.string().trim().min(1).max(80), color: z.string().trim().regex(/^#[0-9a-f]{6}$/iu).optional() })
 
 export async function GET() {
   try {

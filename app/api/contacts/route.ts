@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { requireUser } from '@/lib/supabase/user'
 
 function escapeLike(value: string) { return value.replace(/[\\%_,().]/gu, (char) => `\\${char}`) }
@@ -12,10 +13,12 @@ export async function GET(request: Request) {
     const query = escapeLike((url.searchParams.get('q') ?? '').trim().slice(0, 100))
     const gender = url.searchParams.get('gender')
     const labelId = url.searchParams.get('labelId')
+    if (gender && !['MALE', 'FEMALE', 'UNKNOWN'].includes(gender)) return NextResponse.json({ error: 'INVALID_GENDER_FILTER' }, { status: 422 })
+    if (labelId && !z.string().uuid().safeParse(labelId).success) return NextResponse.json({ error: 'INVALID_LABEL_FILTER' }, { status: 422 })
     const selection = labelId
       ? 'id, display_name, first_name, phone_e164, gender, gender_reviewed, created_at, contact_labels!inner(label_id, labels(id, name, color))'
       : 'id, display_name, first_name, phone_e164, gender, gender_reviewed, created_at, contact_labels(label_id, labels(id, name, color))'
-    let builder = supabase.from('contacts').select(selection, { count: 'exact' }).eq('owner_id', user.id).order('created_at', { ascending: false }).range(page * pageSize, page * pageSize + pageSize - 1)
+    let builder = supabase.from('contacts').select(selection, { count: 'exact' }).eq('owner_id', user.id).order('created_at', { ascending: false }).order('id', { ascending: true }).range(page * pageSize, page * pageSize + pageSize - 1)
     if (query) builder = builder.or(`display_name.ilike.%${query}%,phone_e164.ilike.%${query}%`)
     if (gender && ['MALE', 'FEMALE', 'UNKNOWN'].includes(gender)) builder = builder.eq('gender', gender)
     if (labelId) builder = builder.eq('contact_labels.label_id', labelId)

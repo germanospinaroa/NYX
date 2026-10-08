@@ -25,7 +25,7 @@ Evolution es un proveedor de canal y no el núcleo del dominio.
 
 ## Estado actual
 
-FASE 1 — REVIEW WORKSPACE + HARDENING VERIFICADOS; UX PENDING
+FASE 3A — CONTACTS OPERATING WORKSPACE + LABELS
 
 La aplicación Next.js, el flujo de ingestión, la migración reproducible y las
 pruebas puras están preparados. El proyecto Supabase configurado en
@@ -64,11 +64,12 @@ Plugin nativo de Codex `ecc@ecc`, versión `2.2.3`, revisión `ef648e01899ba3e8d
 
 ## Último milestone
 
-Review workspace, gender review, labels y contacts UI implementados sobre el
-refactor bulk y verificados contra el schema real. La corrección de
-preclasificación explícita y guardado batch queda preparada localmente para
-QA, sin deploy en este milestone.
+Contacts Operating Workspace implementado localmente: búsqueda, filtros
+combinados, paginación, selección por página o por todos los resultados,
+labels y cambios bulk de género mediante RPCs existentes. La importación
+completada muestra CTA hacia Contactos. No se tocaron datos reales ni se hizo
+deploy en este milestone.
 
 ## Siguiente fase
 
-FASE 1 — Database + Contacts + Ingestion (REVIEW UX PENDING)
+FASE 3B — Campaign Composer
