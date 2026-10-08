@@ -39,9 +39,10 @@ crea contactos definitivos. `/app/imports/[id]/review` pagina las filas a un
 máximo de 50 visibles, permite corregir nombre, teléfono, género e inclusión,
 y usa RPCs set-based para acciones masivas. La finalización solo acepta filas
 incluidas, válidas y con `gender_review_status=REVIEWED` y `gender_final` no
-nulo. Los archivos sin columnas de género reciben explícitamente
-`UNKNOWN + REVIEWED`; una sugerencia importada nunca se convierte sola en dato
-final.
+nulo. Los archivos sin columnas de género reciben `gender_final=UNKNOWN` pero
+`gender_review_status=PENDING`; una sugerencia importada nunca se convierte
+sola en dato final. `REVIEWED` solo aparece después de una acción explícita en
+el workspace.
 
 Las etiquetas son many-to-many mediante `labels` y `contact_labels`, con FKs
 compuestas por owner y acciones bulk para agregar/quitar. La nueva migración

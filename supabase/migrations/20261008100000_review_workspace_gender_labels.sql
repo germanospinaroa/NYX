@@ -75,8 +75,8 @@ begin
      set status = case when exists (
        select 1 from public.contact_import_rows r
         where r.import_id = p_import_id and r.owner_id = v_owner_id
-          and r.included and r.result in ('VALID', 'MATCHED_EXISTING')
-          and not (r.gender_review_status = 'REVIEWED' and r.gender_final is not null)
+          and r.included
+          and (r.result not in ('VALID', 'MATCHED_EXISTING') or not r.row_is_ready)
      ) then 'REVIEW_REQUIRED' else 'READY_TO_FINALIZE' end
    where id = p_import_id and owner_id = v_owner_id;
   select status into v_status from public.contact_imports where id = p_import_id and owner_id = v_owner_id;

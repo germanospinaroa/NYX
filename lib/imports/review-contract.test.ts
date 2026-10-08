@@ -19,6 +19,10 @@ describe('review workspace database contract', () => {
   it('requires reviewed final gender before set-based finalization', () => {
     expect(migration).toContain("not r.row_is_ready")
     expect(migration).toContain("r.gender_review_status = 'REVIEWED'")
+    expect(migration).toContain("p_action = 'ACCEPT_SUGGESTION'")
+    expect(migration).toContain("p_action = 'MARK_REVIEWED'")
+    expect(migration).toContain("raise exception 'IMPORT_REVIEW_REQUIRED'")
+    expect(migration).toContain("r.result not in ('VALID', 'MATCHED_EXISTING') or not r.row_is_ready")
     expect(migration).toContain("set status = 'FINALIZING'")
     expect(migration).toContain('insert into public.contacts')
     expect(migration).toContain('on conflict (owner_id, phone_e164) do nothing')

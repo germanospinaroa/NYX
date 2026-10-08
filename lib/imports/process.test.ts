@@ -40,11 +40,21 @@ describe('prepareImport', () => {
       new Set(), 'CO',
     )
     expect(result.rows[0]).toMatchObject({ genderSuggestion: 'FEMALE', genderConfidence: 'HIGH', genderFinal: null, genderReviewStatus: 'PENDING' })
-    expect(result.rows[1]).toMatchObject({ genderSuggestion: 'MALE', genderFinal: 'UNKNOWN', genderReviewStatus: 'REVIEWED' })
+    expect(result.rows[1]).toMatchObject({ genderSuggestion: 'MALE', genderFinal: null, genderReviewStatus: 'PENDING' })
   })
 
-  it('defaults files without gender columns to reviewed UNKNOWN', () => {
+  it('defaults files without gender columns to UNKNOWN pending explicit review', () => {
     const result = prepareImport([{ Name: 'Synthetic A', Phone: '+442079460001' }], { name: 'Name', phone: 'Phone' }, new Set(), 'CO')
-    expect(result.rows[0]).toMatchObject({ genderFinal: 'UNKNOWN', genderReviewStatus: 'REVIEWED' })
+    expect(result.rows[0]).toMatchObject({ genderSuggestion: null, genderFinal: 'UNKNOWN', genderReviewStatus: 'PENDING' })
+  })
+
+  it('keeps MALE and FEMALE suggestions pending until explicit action', () => {
+    const result = prepareImport([
+      { Name: 'Synthetic A', Phone: '+442079460001', Gender: 'MALE' },
+      { Name: 'Synthetic B', Phone: '+442079460002', Gender: 'FEMALE' },
+    ], { name: 'Name', phone: 'Phone', genderSuggestion: 'Gender' }, new Set(), 'CO')
+    expect(result.rows.map((row) => [row.genderSuggestion, row.genderFinal, row.genderReviewStatus])).toEqual([
+      ['MALE', null, 'PENDING'], ['FEMALE', null, 'PENDING'],
+    ])
   })
 })

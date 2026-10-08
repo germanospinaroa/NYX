@@ -116,14 +116,15 @@ function initialGender(
 ): Pick<PreparedImportRow, 'genderSuggestion' | 'genderConfidence' | 'genderFinal' | 'genderReviewStatus'> {
   const suggestion = parseGender(mapping.genderSuggestion ? sourceRow[mapping.genderSuggestion] : '')
   const confidence = parseConfidence(mapping.genderConfidence ? sourceRow[mapping.genderConfidence] : '')
-  const sourceMarkedReviewed = normalizeToken(mapping.genderReview ? sourceRow[mapping.genderReview] : '') === 'REVIEWED'
+  // A file-provided review marker is input evidence, not a NYX user action.
+  // Only the review workspace can create REVIEWED state.
   return {
     genderSuggestion: suggestion,
     genderConfidence: confidence,
     // No gender columns means an explicit unknown, while a suggestion is
     // never promoted to final without review in NYX.
-    genderFinal: !hasGenderColumns || sourceMarkedReviewed ? 'UNKNOWN' : null,
-    genderReviewStatus: !hasGenderColumns || sourceMarkedReviewed ? 'REVIEWED' : 'PENDING',
+    genderFinal: hasGenderColumns ? null : 'UNKNOWN',
+    genderReviewStatus: 'PENDING',
   }
 }
 
