@@ -25,7 +25,7 @@ Evolution es un proveedor de canal y no el núcleo del dominio.
 
 ## Estado actual
 
-FASE 3A — CONTACTS OPERATING WORKSPACE + LABELS
+FASE 3B — CORE OPERATIONS IMPLEMENTADAS LOCALMENTE; MIGRACIÓN PENDIENTE
 
 La aplicación Next.js, el flujo de ingestión, la migración reproducible y las
 pruebas puras están preparados. El proyecto Supabase configurado en
@@ -40,6 +40,13 @@ finalización set-based. Las migraciones bulk y review workspace ya fueron
 aplicadas manualmente en Supabase. La nueva migration
 `20261008120000_harden_rpc_grants_and_rls.sql` también fue aplicada y
 verificada contra Supabase real.
+
+El núcleo operativo quedó preparado localmente: CRUD de contactos con notas y
+archivo, biblioteca de labels, selección de audiencias, snapshot inmutable de
+recipients, outbox, worker persistente y adapter Evolution. La migration
+`20261008150000_core_operations.sql` todavía no se ha aplicado remotamente por
+instrucción; por ello no se declara listo para producción ni se han ejecutado
+envíos reales.
 
 La CLI de Supabase no está disponible en este entorno y no existe
 `supabase/config.toml`; el historial remoto queda pendiente de reconciliación
@@ -64,12 +71,15 @@ Plugin nativo de Codex `ecc@ecc`, versión `2.2.3`, revisión `ef648e01899ba3e8d
 
 ## Último milestone
 
-Contacts Operating Workspace implementado localmente: búsqueda, filtros
-combinados, paginación, selección por página o por todos los resultados,
-labels y cambios bulk de género mediante RPCs existentes. La importación
-completada muestra CTA hacia Contactos. No se tocaron datos reales ni se hizo
-deploy en este milestone.
+Core Operations implementado localmente: contactos manuales, contexto y
+archivo; labels; composer de mensaje individual; composer de campañas con
+snapshot; outbox y worker/adapter preparados. No se aplicó la nueva migration,
+no se tocaron datos reales, no se ejecutó el worker contra producción y no se
+hizo deploy en este milestone.
 
 ## Siguiente fase
 
-FASE 3B — Campaign Composer
+Aplicar y verificar `20261008150000_core_operations.sql` mediante el flujo
+oficial de migraciones, después de reconciliar el historial remoto. Luego
+seguir con QA controlado de campañas y worker; no enviar mensajes reales sin
+autorización explícita.

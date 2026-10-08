@@ -8,7 +8,7 @@ const schema = z.object({ name: z.string().trim().min(1).max(80), color: z.strin
 export async function GET() {
   try {
     const { supabase, user } = await requireUser()
-    const { data, error } = await supabase.from('labels').select('id, name, color, normalized_name').eq('owner_id', user.id).order('name')
+    const { data, error } = await supabase.from('labels').select('id, name, color, normalized_name, contact_labels(count)').eq('owner_id', user.id).order('name')
     if (error) return NextResponse.json({ error: 'LABELS_LOAD_FAILED' }, { status: 400 })
     return NextResponse.json({ labels: data ?? [] })
   } catch (error) {

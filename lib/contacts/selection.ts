@@ -2,11 +2,11 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type ContactSelection =
   | { mode: 'ids'; ids: Set<string> }
-  | { mode: 'filter'; q: string; gender: string; labelId: string; excludeIds: Set<string>; total?: number }
+  | { mode: 'filter'; q: string; gender: string; labelId: string; archived?: string; excludeIds: Set<string>; total?: number }
 
 export type SerializedContactSelection =
   | { mode: 'ids'; contactIds: string[] }
-  | { mode: 'filter'; q?: string; gender?: string; labelId?: string; excludeIds?: string[] }
+  | { mode: 'filter'; q?: string; gender?: string; labelId?: string; archived?: string; excludeIds?: string[] }
 
 export function selectionCount(selection: ContactSelection | null, filteredTotal: number): number {
   if (!selection) return 0
@@ -39,6 +39,8 @@ export async function resolveContactIds(
     if (escapedQuery) builder = builder.or(`display_name.ilike.%${escapedQuery}%,phone_e164.ilike.%${escapedQuery}%`)
     if (selection.gender && ['MALE', 'FEMALE', 'UNKNOWN'].includes(selection.gender)) builder = builder.eq('gender', selection.gender)
     if (selection.labelId) builder = builder.eq('contact_labels.label_id', selection.labelId)
+    if (selection.archived === 'ARCHIVED') builder = builder.not('archived_at', 'is', null)
+    else if (selection.archived !== 'ALL') builder = builder.is('archived_at', null)
     const { data, error } = await builder.range(offset, offset + batchSize - 1)
     if (error) return { ids: [], error }
     const rows = (data ?? []) as unknown as Array<{ id: string }>

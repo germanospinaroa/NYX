@@ -6,7 +6,7 @@ import { isSameOrigin } from '@/lib/security/request'
 
 const selectionSchema = z.union([
   z.object({ mode: z.literal('ids'), contactIds: z.array(z.string().uuid()).min(1).max(100000) }),
-  z.object({ mode: z.literal('filter'), q: z.string().max(100).optional(), gender: z.enum(['', 'MALE', 'FEMALE', 'UNKNOWN']).optional(), labelId: z.string().uuid().optional(), excludeIds: z.array(z.string().uuid()).max(100000).optional() }),
+  z.object({ mode: z.literal('filter'), q: z.string().max(100).optional(), gender: z.enum(['', 'MALE', 'FEMALE', 'UNKNOWN']).optional(), labelId: z.string().uuid().optional(), archived: z.enum(['ACTIVE', 'ARCHIVED', 'ALL']).optional(), excludeIds: z.array(z.string().uuid()).max(100000).optional() }),
 ])
 const schema = z.object({ selection: selectionSchema, gender: z.enum(['MALE', 'FEMALE', 'UNKNOWN']) })
 

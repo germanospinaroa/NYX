@@ -10,6 +10,7 @@ p { color: var(--muted); }
 button, input, select { font: inherit; }
 button { cursor: pointer; border: 0; border-radius: 8px; padding: 10px 15px; background: var(--accent); color: white; }
 .button-link { display: inline-block; border-radius: 8px; padding: 10px 15px; background: var(--accent); color: white; text-decoration: none; }
+.secondary-link { background: white; color: var(--ink); border: 1px solid var(--line); }
 button.secondary { background: white; color: var(--ink); border: 1px solid var(--line); }
 button:disabled { opacity: .55; cursor: not-allowed; }
 .card { background: white; border: 1px solid var(--line); border-radius: 12px; padding: 20px; box-shadow: 0 5px 20px #17203308; }
@@ -105,6 +106,15 @@ thead .sticky-col { z-index: 5; background: #f8fafc; }
 .contact-card-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .contact-card > span { color: var(--muted); }
 .contact-card > button { width: max-content; }
+.form-narrow { max-width: 720px; }
+.form-narrow label { display: grid; gap: 6px; }
+.form-narrow textarea { font: inherit; border: 1px solid #cfd4dc; border-radius: 7px; padding: 10px; resize: vertical; }
+.label-library { display: grid; gap: 10px; }
+.label-library-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.label-library-row span:nth-child(2) { color: var(--muted); margin-right: auto; }
+.message-history-row { display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.message-history-row span { color: var(--muted); font-size: 13px; }
+.message-history-row p { grid-column: 1 / -1; margin: 0; }
 @media (max-width: 1199px) and (min-width: 761px) {
   .review-table .col-original-name { width: 125px; }
   .review-table .col-name { width: 140px; }

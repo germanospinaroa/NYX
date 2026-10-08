@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { selectionCount, selectionIncludes, type ContactSelection } from './selection'
+import { resolveContactIds, selectionCount, selectionIncludes, type ContactSelection } from './selection'
 
 const filter = { mode: 'filter' as const, q: 'ana', gender: 'FEMALE', labelId: 'label-1', excludeIds: new Set<string>() }
 
@@ -22,5 +22,23 @@ describe('contacts selection model', () => {
     expect(selectionCount(selection, 284)).toBe(2)
     expect(selectionIncludes(selection, 'contact-2')).toBe(true)
     expect(selectionIncludes(selection, 'contact-3')).toBe(false)
+  })
+
+  it('returns explicit ids without a database request', async () => {
+    const result = await resolveContactIds({} as never, 'owner-1', { mode: 'ids', contactIds: ['contact-1'] })
+    expect(result).toEqual({ ids: ['contact-1'], error: null })
+  })
+
+  it('resolves an empty filtered audience through the paged query path', async () => {
+    const builder = {
+      select() { return this },
+      eq() { return this },
+      order() { return this },
+      is() { return this },
+      range: async () => ({ data: [], error: null }),
+    }
+    const client = { from: () => builder } as never
+    const result = await resolveContactIds(client, 'owner-1', { mode: 'filter', archived: 'ACTIVE' })
+    expect(result).toEqual({ ids: [], error: null })
   })
 })

@@ -1,0 +1,12 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+
+type Label = { id: string; name: string; color?: string | null }
+export function ContactForm() {
+  const router = useRouter(); const [labels, setLabels] = useState<Label[]>([]); const [name, setName] = useState(''); const [phone, setPhone] = useState(''); const [gender, setGender] = useState('UNKNOWN'); const [notes, setNotes] = useState(''); const [labelIds, setLabelIds] = useState<string[]>([]); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false)
+  useEffect(() => { void fetch('/api/labels').then((response) => response.json()).then((body) => setLabels(body.labels ?? [])) }, [])
+  async function submit(event: React.FormEvent) { event.preventDefault(); setSaving(true); setError(null); const response = await fetch('/api/contacts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, phone, gender, notes, labelIds }) }); const body = await response.json().catch(() => ({})); if (response.status === 409 && body.contactId) setError(`Este contacto ya existe. Puedes verlo en /app/contacts/${body.contactId}.`); else if (!response.ok) setError(body.error === 'INVALID_PHONE' ? 'El teléfono no es válido.' : 'No fue posible crear el contacto.'); else router.push(`/app/contacts/${body.id}`); setSaving(false) }
+  return <form className="card stack form-narrow" onSubmit={(event) => void submit(event)}>{error && <div className="error" role="alert">{error}</div>}<label>Nombre<input required value={name} onChange={(event) => setName(event.target.value)} /></label><label>Teléfono<input required value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+57…" /></label><label>Género<select value={gender} onChange={(event) => setGender(event.target.value)}><option value="MALE">Hombre</option><option value="FEMALE">Mujer</option><option value="UNKNOWN">Desconocido</option></select></label><label>Labels<select multiple value={labelIds} onChange={(event) => setLabelIds([...event.target.selectedOptions].map((option) => option.value))}>{labels.map((label) => <option key={label.id} value={label.id}>{label.name}</option>)}</select></label><label>Nota / contexto<textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={5} maxLength={5000} /></label><button disabled={saving}>{saving ? 'Guardando…' : 'Crear contacto'}</button></form>
+}
