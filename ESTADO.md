@@ -25,7 +25,7 @@ Evolution es un proveedor de canal y no el núcleo del dominio.
 
 ## Estado actual
 
-FASE 1 — REVIEW WORKSPACE READY FOR MIGRATION
+FASE 1 — REVIEW WORKSPACE VERIFICADO; HARDENING PENDIENTE
 
 La aplicación Next.js, el flujo de ingestión, la migración reproducible y las
 pruebas puras están preparados. El proyecto Supabase configurado en
@@ -36,13 +36,15 @@ sesión del usuario owner de prueba; por eso login, persistencia autenticada,
 aislamiento RLS y el flujo E2E todavía no pueden declararse verificados.
 
 La importación fue rediseñada para staging bulk, revisión paginada y
-finalización set-based. La migración bulk anterior ya fue aplicada manualmente
-en Supabase. La nueva migración `20261008100000_review_workspace_gender_labels.sql`
-debe aplicarse antes de desplegar esta versión; no se ha ejecutado desde Codex.
+finalización set-based. Las migraciones bulk y review workspace ya fueron
+aplicadas manualmente en Supabase. La nueva migration
+`20261008120000_harden_rpc_grants_and_rls.sql` queda preparada, pero todavía
+no se ha aplicado.
 
-Acción pendiente: ejecutar las pruebas con una sesión del usuario owner de
-prueba, sin guardar su password en Git ni documentación. No se requiere
-modificar `.env.local` para las claves públicas actuales.
+Acción pendiente: reparar el historial remoto con la CLI oficial de Supabase,
+aplicar la migration de hardening y verificar `pg_proc.proacl`/policies con una
+sesión owner. La CLI no está disponible en este entorno y no existe
+`supabase/config.toml`; no se manipuló el historial manualmente.
 
 Fase 0 verificó conexión/versionado, connection state de una instancia
 dedicada, number check, sendText, sendMedia y el contrato observado de
@@ -63,9 +65,9 @@ Plugin nativo de Codex `ecc@ecc`, versión `2.2.3`, revisión `ef648e01899ba3e8d
 ## Último milestone
 
 Review workspace, gender review, labels y contacts UI implementados sobre el
-refactor bulk; pendiente de aplicar la migración incremental y verificar E2E
-contra Supabase real.
+refactor bulk y verificados contra el schema real; hardening de grants/RLS
+preparado localmente, pendiente de reparación del historial y aplicación.
 
 ## Siguiente fase
 
-FASE 1 — Database + Contacts + Ingestion (REVIEW WORKSPACE READY FOR MIGRATION)
+FASE 1 — Database + Contacts + Ingestion (HARDENING PENDING)
