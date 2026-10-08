@@ -3,6 +3,7 @@
 body { margin: 0; color: var(--ink); background: var(--soft); font-family: Arial, sans-serif; }
 a { color: inherit; }
 main { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
+main:has(.review-workspace) { width: 100%; max-width: none; padding: 24px 12px; }
 header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
 h1, h2 { margin: 0 0 12px; }
 p { color: var(--muted); }
@@ -29,6 +30,32 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
 .filter-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .table-scroll { overflow: auto; padding: 0; }
 .table-scroll table { min-width: 1250px; }
+.review-workspace { width: calc(100vw - 24px); max-width: 1800px; margin-inline: auto; padding-inline: 4px; }
+.review-table-wrap { overflow-x: auto; }
+.review-table { width: 100%; min-width: 0 !important; table-layout: fixed; }
+.review-table .col-check { width: 34px; }
+.review-table .col-original-name { width: 150px; }
+.review-table .col-name { width: 160px; }
+.review-table .col-original-phone { width: 135px; }
+.review-table .col-phone { width: 145px; }
+.review-table .col-suggested { width: 75px; }
+.review-table .col-confidence { width: 75px; }
+.review-table .col-final { width: 110px; }
+.review-table .col-state { width: 90px; }
+.review-table .col-action { width: 90px; }
+.review-table th, .review-table td { padding: 8px 6px; overflow: hidden; text-overflow: ellipsis; }
+.review-table input, .review-table select { width: 100%; min-width: 0; padding: 7px 6px; }
+.review-table .sticky-check { left: 0; min-width: 34px; width: 34px; }
+.review-table .sticky-name { left: 34px; min-width: 150px; width: 150px; }
+.review-table .sticky-phone { left: 344px; min-width: 135px; width: 135px; }
+.review-mobile-list { display: none; }
+.review-mobile-card { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: white; box-shadow: 0 5px 20px #17203308; }
+.review-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.review-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.review-card-grid label { display: grid; gap: 5px; min-width: 0; }
+.review-card-grid label > span { font-weight: 400; color: var(--muted); overflow-wrap: anywhere; }
+.review-card-grid input, .review-card-grid select { width: 100%; min-width: 0; }
+.row-action { width: 100%; padding: 7px 6px; white-space: nowrap; }
 .review-save-bar { position: sticky; top: 12px; z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border: 1px solid #c7d2fe; border-radius: 10px; background: #eef2ff; box-shadow: 0 8px 20px #17203318; }
 .review-save-bar span { color: var(--muted); flex: 1; }
 .sticky-col { position: sticky; z-index: 3; background: white; }
@@ -42,7 +69,22 @@ thead .sticky-col { z-index: 5; background: #f8fafc; }
 .state-revisado { color: #067647; }
 .state-inválido { color: #b42318; }
 .state-excluido { color: #667085; text-decoration: line-through; }
+@media (max-width: 1199px) and (min-width: 761px) {
+  .review-table .col-original-name { width: 125px; }
+  .review-table .col-name { width: 140px; }
+  .review-table .col-original-phone { width: 115px; }
+  .review-table .col-phone { width: 125px; }
+  .review-table .col-suggested, .review-table .col-confidence { width: 65px; }
+  .review-table .col-final { width: 95px; }
+  .review-table .col-state { width: 85px; }
+  .review-table .col-action { width: 88px; }
+  .review-table .sticky-name { min-width: 125px; width: 125px; }
+  .review-table .sticky-phone { left: 299px; min-width: 115px; width: 115px; }
+}
 @media (max-width: 760px) {
-  .sticky-name { min-width: 145px; width: 145px; }
-  .sticky-phone { left: 197px; min-width: 135px; width: 135px; }
+  main:has(.review-workspace) { padding: 16px 10px; }
+  .review-workspace { width: 100%; padding-inline: 0; }
+  .review-table-wrap { display: none; }
+  .review-mobile-list { display: grid; gap: 12px; }
+  .review-card-grid { grid-template-columns: 1fr; }
 }
