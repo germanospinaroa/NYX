@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { finalizeErrorMessage } from '@/lib/imports/finalize-errors'
 import { applyDraft, createDraft, dirtyDraftEntries, removeDrafts, type ReviewDraft } from '@/lib/imports/review-drafts'
 
 type ReviewRow = {
@@ -76,10 +77,16 @@ export function ReviewWorkspace({ importId }: { importId: string }) {
   async function finalize() {
     if (dirtyRows.length) return
     setLoading(true); setError(null); setMessage(null)
-    const response = await fetch(`/api/import/${importId}/finalize`, { method: 'POST' }); const body = await response.json()
-    if (!response.ok) setError(body.error === 'IMPORT_REVIEW_REQUIRED' ? 'Aún hay filas incluidas que requieren revisión.' : 'No fue posible finalizar la importación.')
-    else { setMessage(`Importación completada: ${body.created_contacts} contactos nuevos y ${body.matched_existing_contacts} existentes.`); await load() }
-    setLoading(false)
+    try {
+      const response = await fetch(`/api/import/${importId}/finalize`, { method: 'POST' })
+      const body = await response.json().catch(() => ({})) as { error?: unknown; errorCode?: string; created_contacts?: number; matched_existing_contacts?: number }
+      if (!response.ok) setError(finalizeErrorMessage(typeof body.error === 'string' ? body.error : 'IMPORT_FINALIZE_FAILED', body.errorCode))
+      else { setMessage(`Importación completada: ${body.created_contacts} contactos nuevos y ${body.matched_existing_contacts} existentes.`); await load() }
+    } catch {
+      setError(finalizeErrorMessage('IMPORT_FINALIZE_FAILED'))
+    } finally {
+      setLoading(false)
+    }
   }
   function changeFilter(value: string) { setFilter(value); setPage(0); setSelected(new Set()) }
   function discardChanges() { setDirty({}); setMessage('Cambios descartados.') }
