@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findUnsupportedVariables, resolveCampaignTemplate } from './personalization'
+import { findUnsupportedVariables, resolveCampaignStep, resolveCampaignTemplate, resolveCampaignVariant } from './personalization'
 
 describe('campaign personalization', () => {
   const snapshot = { firstNameSnapshot: 'María', displayNameSnapshot: 'María Fernanda Gómez' }
@@ -15,5 +15,13 @@ describe('campaign personalization', () => {
   it('uses the display name first token defensively', () => {
     expect(resolveCampaignTemplate('Hola {{nombre}}', { displayNameSnapshot: 'Carlos Rivera' }).value).toBe('Hola Carlos')
     expect(resolveCampaignTemplate('Hola {{nombre}}', {}).error).toBe('MISSING_RECIPIENT_NAME')
+  })
+  it('matches the DB variant and caption fallback rules', () => {
+    const steps = [{ type: 'TEXT' as const, neutralText: 'Hola {{nombre}}', maleText: 'Qué tal {{nombre}}' }, { type: 'IMAGE' as const, neutralCaption: 'Mira esto', femaleCaption: 'Para ti, {{nombre}}' }]
+    expect(resolveCampaignVariant('MALE', steps)).toBe('MALE')
+    expect(resolveCampaignStep(steps[0], 'MALE', snapshot).text).toBe('Qué tal María')
+    expect(resolveCampaignVariant('FEMALE', steps)).toBe('FEMALE')
+    expect(resolveCampaignStep(steps[1], 'FEMALE', snapshot).caption).toBe('Para ti, María')
+    expect(resolveCampaignStep(steps[1], 'NEUTRAL', snapshot).caption).toBe('Mira esto')
   })
 })

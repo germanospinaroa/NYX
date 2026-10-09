@@ -1,16 +1,18 @@
 'use client'
 
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ConversationPreview } from '@/app/app/messages/conversation-preview'
-import { resolveCampaignTemplate } from '@/lib/campaigns/personalization'
+import { resolveCampaignStep, resolveCampaignVariant } from '@/lib/campaigns/personalization'
+import { insertTemplateVariable, type CampaignVariableToken } from '@/lib/campaigns/variables'
 import { validateAudioFile, validateImageFile } from '@/lib/messages/upload'
 
 type Selection = { mode: 'ids'; contactIds: string[] } | { mode: 'filter'; q?: string; gender?: string; labelId?: string; archived?: string; permission?: string; excludeIds?: string[] }
 type StepType = 'TEXT' | 'IMAGE' | 'AUDIO'
 type Step = { id: string; type: StepType; neutralText: string; maleText: string; femaleText: string; neutralCaption: string; maleCaption: string; femaleCaption: string; mediaPath?: string; mimeType?: string; durationMs?: number; previewUrl?: string; uploading?: boolean }
-type Preflight = { selected: number; permitted: number; unknown: number; optedOut: number; recent: number; eligible: number; samples?: Array<{ first_name: string | null; display_name: string }> }
+type Preflight = { selected: number; permitted: number; unknown: number; optedOut: number; recent: number; eligible: number; samples?: Array<{ first_name: string | null; display_name: string; gender: string | null }> }
+
 const base = (): Step => ({ id: crypto.randomUUID(), type: 'TEXT', neutralText: '', maleText: '', femaleText: '', neutralCaption: '', maleCaption: '', femaleCaption: '' })
 const makeStep = (type: StepType): Step => ({ ...base(), type })
 
@@ -21,18 +23,101 @@ function clean(step: Step) {
 }
 
 export function CampaignForm() {
-  const router = useRouter(); const [selection, setSelection] = useState<Selection | null>(null); const [name, setName] = useState(''); const [frequencyCapDays, setFrequencyCapDays] = useState(7); const [steps, setSteps] = useState<Step[]>([base()]); const [preflight, setPreflight] = useState<Preflight | null>(null); const [sampleIndex, setSampleIndex] = useState(0); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false)
-  // Selection is restored from the Contacts workflow after mount.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { const raw = window.sessionStorage.getItem('nyx-campaign-selection'); if (raw) { try { setSelection(JSON.parse(raw) as Selection) } catch { setError('No fue posible recuperar la audiencia seleccionada.') } } }, [])
-  useEffect(() => { if (!selection) return; void fetch('/api/campaigns/preflight', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection, frequencyCapDays }) }).then(async (response) => { if (response.ok) setPreflight(await response.json() as Preflight) }) }, [frequencyCapDays, selection])
+  const router = useRouter()
+  const [selection, setSelection] = useState<Selection | null>(null)
+  const [name, setName] = useState('')
+  const [frequencyCapDays, setFrequencyCapDays] = useState(7)
+  const [steps, setSteps] = useState<Step[]>([base()])
+  const [preflight, setPreflight] = useState<Preflight | null>(null)
+  const [sampleIndex, setSampleIndex] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const textareas = useRef<Record<string, HTMLTextAreaElement | null>>({})
+
+  // Selection is restored from Contacts after mount.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const raw = window.sessionStorage.getItem('nyx-campaign-selection')
+    if (raw) try { setSelection(JSON.parse(raw) as Selection) } catch { setError('No fue posible recuperar la audiencia seleccionada.') }
+  }, [])
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    if (!selection) return
+    void fetch('/api/campaigns/preflight', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection, frequencyCapDays }) }).then(async (response) => {
+      if (response.ok) setPreflight(await response.json() as Preflight)
+    })
+  }, [frequencyCapDays, selection])
+
   const audience = selection?.mode === 'ids' ? `${selection.contactIds.length} contactos seleccionados` : selection ? 'resultados filtrados' : 'sin audiencia'
   const sample = preflight?.samples?.[sampleIndex] ?? null
+  const sampleVariant = sample ? resolveCampaignVariant(sample.gender, steps) : 'NEUTRAL'
   const update = (id: string, patch: Partial<Step>) => setSteps((current) => current.map((step) => step.id === id ? { ...step, ...patch } : step))
   const move = (id: string, direction: -1 | 1) => setSteps((current) => { const index = current.findIndex((step) => step.id === id); const target = index + direction; if (target < 0 || target >= current.length) return current; const next = [...current]; [next[index], next[target]] = [next[target], next[index]]; return next })
   const remove = (id: string) => setSteps((current) => current.length > 1 ? current.filter((step) => step.id !== id) : current)
-  async function upload(id: string, file: File, type: 'IMAGE' | 'AUDIO') { const message = type === 'IMAGE' ? validateImageFile(file) : validateAudioFile(file); if (message) { setError(message); return }; const previewUrl = URL.createObjectURL(file); update(id, { uploading: true, previewUrl, mimeType: file.type }); const body = new FormData(); body.set('file', file); body.set('kind', type); try { const response = await fetch('/api/media/upload', { method: 'POST', body }); const result = await response.json().catch(() => ({})) as { path?: string }; if (!response.ok || !result.path) throw new Error(); update(id, { mediaPath: result.path, uploading: false }) } catch { update(id, { uploading: false }); setError(`No fue posible subir ${type === 'IMAGE' ? 'la imagen' : 'el audio'}.`) } }
-  async function submit(event: React.FormEvent) { event.preventDefault(); setError(null); if (!selection) { setError('Selecciona una audiencia antes de preparar la campaña.'); return }; if (steps.some((step) => step.type === 'TEXT' && !step.neutralText.trim())) { setError('Cada paso de texto necesita un mensaje neutral.'); return }; if (steps.some((step) => step.type !== 'TEXT' && !step.mediaPath)) { setError('Cada paso multimedia necesita un archivo.'); return }; setSaving(true); try { const response = await fetch('/api/campaigns', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, frequencyCapDays, steps: steps.map(clean), selection }) }); const result = await response.json().catch(() => ({})); if (!response.ok) throw new Error(result.error); window.sessionStorage.removeItem('nyx-campaign-selection'); router.push('/app/campaigns') } catch (submitError) { setError(submitError instanceof Error && submitError.message === 'VARIABLE_NO_COMPATIBLE' ? 'Esta variable todavía no está disponible.' : submitError instanceof Error && submitError.message === 'NO_ELIGIBLE_RECIPIENTS' ? 'No hay personas elegibles con permiso confirmado y sin contacto reciente.' : 'No fue posible preparar la campaña.'); setSaving(false) } }
-  const previewSteps = steps.map((step) => { const rendered = sample ? resolveCampaignTemplate(step.neutralText, { firstNameSnapshot: sample.first_name, displayNameSnapshot: sample.display_name }).value : step.neutralText; const caption = sample ? resolveCampaignTemplate(step.neutralCaption, { firstNameSnapshot: sample.first_name, displayNameSnapshot: sample.display_name }).value : step.neutralCaption; return { id: step.id, type: step.type, text: rendered, caption, mediaPath: step.mediaPath, previewUrl: step.previewUrl, mimeType: step.mimeType, durationMs: step.durationMs } })
-  return <form className="campaign-sequence-form" onSubmit={(event) => void submit(event)}>{error && <div className="inline-alert" role="alert">{error}</div>}<div className="campaign-composer-layout"><div className="card stack"><div className="section-heading"><div><span className="eyebrow">AUDIENCIA</span><h1>Nueva campaña</h1></div><span className="muted">{audience}</span></div><label>Nombre de campaña (opcional)<input value={name} onChange={(event) => setName(event.target.value)} /></label><label>Protección de frecuencia<select value={frequencyCapDays} onChange={(event) => setFrequencyCapDays(Number(event.target.value))}><option value={1}>1 día</option><option value={3}>3 días</option><option value={7}>7 días</option><option value={14}>14 días</option><option value={30}>30 días</option><option value={90}>90 días</option></select></label>{preflight && <div className="campaign-preflight"><strong>Antes de preparar</strong><span>Seleccionados: {preflight.selected}</span><span>Con permiso: {preflight.permitted}</span><span>Sin confirmar: {preflight.unknown}</span><span>No enviar: {preflight.optedOut}</span><span>Contactados recientemente: {preflight.recent}</span><strong>Elegibles: {preflight.eligible}</strong></div>}<div className="sequence-heading"><h2>Secuencia de mensajes</h2><span>{steps.length} pasos</span></div>{steps.map((step, index) => <article className="sequence-step" key={step.id}><div className="sequence-step-heading"><strong>Paso {index + 1} · {step.type === 'TEXT' ? 'Texto' : step.type === 'IMAGE' ? 'Imagen' : 'Audio'}</strong><div className="row"><button type="button" className="icon-button" aria-label="Mover arriba" onClick={() => move(step.id, -1)} disabled={index === 0}>↑</button><button type="button" className="icon-button" aria-label="Mover abajo" onClick={() => move(step.id, 1)} disabled={index === steps.length - 1}>↓</button><button type="button" className="icon-button" aria-label="Eliminar paso" onClick={() => remove(step.id)} disabled={steps.length === 1}>×</button></div></div><label>Tipo<select value={step.type} onChange={(event) => update(step.id, { ...makeStep(event.target.value as StepType), id: step.id })}><option value="TEXT">Texto</option><option value="IMAGE">Imagen</option><option value="AUDIO">Audio</option></select></label>{step.type === 'TEXT' ? <><label>Mensaje neutral<textarea rows={5} value={step.neutralText} onChange={(event) => update(step.id, { neutralText: event.target.value })} /><small>Variables: {'{{nombre}}'} y {'{{nombre_completo}}'}</small></label><div className="row"><button type="button" className="secondary" onClick={() => update(step.id, { neutralText: `${step.neutralText}{{nombre}}` })}>Insertar nombre</button><button type="button" className="secondary" onClick={() => update(step.id, { neutralText: `${step.neutralText}{{nombre_completo}}` })}>Insertar nombre completo</button></div><label>Variante hombre<textarea rows={3} value={step.maleText} onChange={(event) => update(step.id, { maleText: event.target.value })} /></label><label>Variante mujer<textarea rows={3} value={step.femaleText} onChange={(event) => update(step.id, { femaleText: event.target.value })} /></label></> : <><label className="upload-dropzone"><strong>{step.type === 'IMAGE' ? 'Subir imagen' : 'Subir audio'}</strong><small>{step.type === 'IMAGE' ? 'JPG, PNG o WebP · hasta 8 MB' : 'WebM, OGG, MP4 o MP3 · hasta 16 MB'}</small><input type="file" accept={step.type === 'IMAGE' ? 'image/jpeg,image/png,image/webp' : 'audio/webm,audio/ogg,audio/mp4,audio/mpeg'} onChange={(event) => { const file = event.target.files?.[0]; if (file && step.type !== 'TEXT') void upload(step.id, file, step.type) }} /></label>{step.previewUrl && (step.type === 'IMAGE' ? <img className="sequence-image-preview" src={step.previewUrl} alt="Vista previa" /> : <audio controls src={step.previewUrl} aria-label="Vista previa del audio" />)}{step.type === 'IMAGE' && <label>Caption neutral<textarea rows={3} value={step.neutralCaption} onChange={(event) => update(step.id, { neutralCaption: event.target.value })} /></label>}<span>{step.uploading ? 'Subiendo…' : step.mediaPath ? 'Archivo listo' : 'Selecciona un archivo'}</span></>}</article>)}<div className="row"><button type="button" className="secondary" onClick={() => setSteps((current) => [...current, makeStep('TEXT')])}>+ Texto</button><button type="button" className="secondary" onClick={() => setSteps((current) => [...current, makeStep('IMAGE')])}>+ Imagen</button><button type="button" className="secondary" onClick={() => setSteps((current) => [...current, makeStep('AUDIO')])}>+ Audio</button></div></div><aside className="composer-preview"><div className="row"><strong>Vista como</strong>{preflight?.samples?.length ? <select value={sampleIndex} onChange={(event) => setSampleIndex(Number(event.target.value))}>{preflight.samples.map((person, index) => <option key={person.display_name + index} value={index}>{person.display_name}</option>)}</select> : <span>muestra elegible</span>}</div><ConversationPreview steps={previewSteps} recipient={{ name: sample?.display_name ?? audience }} /></aside></div><div className="row composer-footer"><button type="button" className="secondary" onClick={() => router.back()}>Cancelar</button><button disabled={saving || steps.some((step) => step.uploading)}>{saving ? 'Preparando…' : 'Preparar campaña'}</button></div></form>
+  const insertVariable = (stepId: string, field: keyof Step, variable: CampaignVariableToken) => {
+    const key = `${stepId}:${field}`
+    const input = document.getElementById(key) as HTMLTextAreaElement | null
+    const currentValue = String(input?.value ?? '')
+    const result = insertTemplateVariable(currentValue, input?.selectionStart ?? currentValue.length, input?.selectionEnd ?? currentValue.length, variable)
+    update(stepId, { [field]: result.value })
+    requestAnimationFrame(() => { const next = textareas.current[key]; next?.focus(); next?.setSelectionRange(result.cursor, result.cursor) })
+  }
+  async function upload(id: string, file: File, type: StepType) {
+    if (type === 'TEXT') return
+    const message = type === 'IMAGE' ? validateImageFile(file) : validateAudioFile(file)
+    if (message) { setError(message); return }
+    const previewUrl = URL.createObjectURL(file)
+    update(id, { uploading: true, previewUrl, mimeType: file.type })
+    const body = new FormData(); body.set('file', file); body.set('kind', type)
+    try {
+      const response = await fetch('/api/media/upload', { method: 'POST', body })
+      const result = await response.json().catch(() => ({})) as { path?: string; durationMs?: number }
+      if (!response.ok || !result.path) throw new Error()
+      update(id, { mediaPath: result.path, uploading: false, durationMs: result.durationMs })
+    } catch { update(id, { uploading: false }); setError(`No fue posible subir ${type === 'IMAGE' ? 'la imagen' : 'el audio'}.`) }
+  }
+  async function submit(event: React.FormEvent) {
+    event.preventDefault(); setError(null)
+    if (!selection) { setError('Selecciona una audiencia antes de preparar la campaña.'); return }
+    if (steps.some((step) => step.type === 'TEXT' && !step.neutralText.trim())) { setError('Cada paso de texto necesita un mensaje neutral.'); return }
+    if (steps.some((step) => step.type !== 'TEXT' && !step.mediaPath)) { setError('Cada paso multimedia necesita un archivo.'); return }
+    setSaving(true)
+    try {
+      const response = await fetch('/api/campaigns', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, frequencyCapDays, steps: steps.map(clean), selection }) })
+      const result = await response.json().catch(() => ({})) as { error?: string; campaign?: { campaign_id?: string } }
+      if (!response.ok || !result.campaign?.campaign_id) throw new Error(result.error ?? 'CAMPAIGN_CREATE_FAILED')
+      window.sessionStorage.removeItem('nyx-campaign-selection')
+      router.push(`/app/campaigns/${result.campaign.campaign_id}`)
+    } catch (submitError) {
+      const code = submitError instanceof Error ? submitError.message : ''
+      setError(code === 'VARIABLE_NO_COMPATIBLE' ? 'Esta variable todavía no está disponible.' : code === 'MISSING_RECIPIENT_NAME' ? 'Falta el nombre de una persona elegible.' : code === 'NO_ELIGIBLE_RECIPIENTS' ? 'No hay personas elegibles con permiso confirmado y sin contacto reciente.' : 'No fue posible preparar la campaña.')
+      setSaving(false)
+    }
+  }
+  const previewSteps = steps.map((step) => {
+    const resolved = sample ? resolveCampaignStep(step, sampleVariant, { firstNameSnapshot: sample.first_name, displayNameSnapshot: sample.display_name }) : { text: step.neutralText, caption: step.neutralCaption }
+    return { id: step.id, type: step.type, text: resolved.text, caption: resolved.caption, mediaPath: step.mediaPath, previewUrl: step.previewUrl, mimeType: step.mimeType, durationMs: step.durationMs }
+  })
+
+  return <form className="campaign-sequence-form" onSubmit={(event) => void submit(event)}>
+    {error && <div className="inline-alert" role="alert">{error}</div>}
+    <div className="campaign-composer-layout"><div className="card stack">
+      <div className="section-heading"><div><span className="eyebrow">AUDIENCIA</span><h1>Nueva campaña</h1></div><span className="muted">{audience}</span></div>
+      <label>Nombre de campaña (opcional)<input value={name} onChange={(event) => setName(event.target.value)} /></label>
+      <label>Protección de frecuencia<select value={frequencyCapDays} onChange={(event) => setFrequencyCapDays(Number(event.target.value))}><option value={1}>1 día</option><option value={3}>3 días</option><option value={7}>7 días</option><option value={14}>14 días</option><option value={30}>30 días</option><option value={90}>90 días</option></select></label>
+      {preflight && <div className="campaign-preflight"><strong>Antes de preparar</strong><span>Seleccionados: {preflight.selected}</span><span>Con permiso: {preflight.permitted}</span><span>Sin confirmar: {preflight.unknown}</span><span>No enviar: {preflight.optedOut}</span><span>Contactados recientemente: {preflight.recent}</span><strong>Elegibles: {preflight.eligible}</strong></div>}
+      <div className="sequence-heading"><h2>Secuencia de mensajes</h2><span>{steps.length} pasos</span></div>
+      {steps.map((step, index) => <article className="sequence-step" key={step.id}><div className="sequence-step-heading"><strong>Paso {index + 1} · {step.type === 'TEXT' ? 'Texto' : step.type === 'IMAGE' ? 'Imagen' : 'Audio'}</strong><div className="row"><button type="button" className="icon-button" aria-label="Mover arriba" onClick={() => move(step.id, -1)} disabled={index === 0}>↑</button><button type="button" className="icon-button" aria-label="Mover abajo" onClick={() => move(step.id, 1)} disabled={index === steps.length - 1}>↓</button><button type="button" className="icon-button" aria-label="Eliminar paso" onClick={() => remove(step.id)} disabled={steps.length === 1}>×</button></div></div>
+        <label>Tipo<select value={step.type} onChange={(event) => update(step.id, { ...makeStep(event.target.value as StepType), id: step.id })}><option value="TEXT">Texto</option><option value="IMAGE">Imagen</option><option value="AUDIO">Audio</option></select></label>
+        {step.type === 'TEXT' ? <><VariableTextarea label="Mensaje neutral" value={step.neutralText} onChange={(value) => update(step.id, { neutralText: value })} textareaKey={`${step.id}:neutralText`} refs={textareas} onInsert={(variable) => insertVariable(step.id, 'neutralText', variable)} /><VariableTextarea label="Variante hombre" value={step.maleText} onChange={(value) => update(step.id, { maleText: value })} textareaKey={`${step.id}:maleText`} refs={textareas} onInsert={(variable) => insertVariable(step.id, 'maleText', variable)} /><VariableTextarea label="Variante mujer" value={step.femaleText} onChange={(value) => update(step.id, { femaleText: value })} textareaKey={`${step.id}:femaleText`} refs={textareas} onInsert={(variable) => insertVariable(step.id, 'femaleText', variable)} /></> : <><label className="upload-dropzone"><strong>{step.type === 'IMAGE' ? 'Subir imagen' : 'Subir audio'}</strong><small>{step.type === 'IMAGE' ? 'JPG, PNG o WebP · hasta 8 MB' : 'WebM, OGG, MP4 o MP3 · hasta 16 MB'}</small><input type="file" accept={step.type === 'IMAGE' ? 'image/jpeg,image/png,image/webp' : 'audio/webm,audio/ogg,audio/mp4,audio/mpeg'} onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(step.id, file, step.type) }} /></label>{step.previewUrl && (step.type === 'IMAGE' ? <img className="sequence-image-preview" src={step.previewUrl} alt="Vista previa" /> : <audio controls src={step.previewUrl} aria-label="Vista previa del audio" />)}{step.type === 'IMAGE' && <details><summary>Variantes de caption</summary><VariableTextarea label="Caption neutral" value={step.neutralCaption} onChange={(value) => update(step.id, { neutralCaption: value })} textareaKey={`${step.id}:neutralCaption`} refs={textareas} onInsert={(variable) => insertVariable(step.id, 'neutralCaption', variable)} /><VariableTextarea label="Caption hombre" value={step.maleCaption} onChange={(value) => update(step.id, { maleCaption: value })} textareaKey={`${step.id}:maleCaption`} refs={textareas} onInsert={(variable) => insertVariable(step.id, 'maleCaption', variable)} /><VariableTextarea label="Caption mujer" value={step.femaleCaption} onChange={(value) => update(step.id, { femaleCaption: value })} textareaKey={`${step.id}:femaleCaption`} refs={textareas} onInsert={(variable) => insertVariable(step.id, 'femaleCaption', variable)} /></details>}<span>{step.uploading ? 'Subiendo…' : step.mediaPath ? 'Archivo listo' : 'Selecciona un archivo'}</span></>}
+      </article>)}
+      <div className="row"><button type="button" className="secondary" onClick={() => setSteps((current) => [...current, makeStep('TEXT')])}>+ Texto</button><button type="button" className="secondary" onClick={() => setSteps((current) => [...current, makeStep('IMAGE')])}>+ Imagen</button><button type="button" className="secondary" onClick={() => setSteps((current) => [...current, makeStep('AUDIO')])}>+ Audio</button></div>
+    </div><aside className="composer-preview"><div className="row"><strong>Vista como</strong>{preflight?.samples?.length ? <select value={sampleIndex} onChange={(event) => setSampleIndex(Number(event.target.value))}>{preflight.samples.map((person, index) => <option key={person.display_name + index} value={index}>{person.display_name}</option>)}</select> : <span>muestra elegible</span>}</div><small className="muted">Variante: {sampleVariant === 'NEUTRAL' ? 'general' : sampleVariant === 'MALE' ? 'hombre' : 'mujer'}</small><ConversationPreview steps={previewSteps} recipient={{ name: sample?.display_name ?? audience }} /></aside></div>
+    <div className="row composer-footer"><button type="button" className="secondary" onClick={() => router.back()}>Cancelar</button><button disabled={saving || steps.some((step) => step.uploading)}>{saving ? 'Preparando…' : 'Preparar campaña'}</button></div>
+  </form>
+}
+
+function VariableTextarea({ label, value, onChange, textareaKey, onInsert }: { label: string; value: string; onChange: (value: string) => void; textareaKey: string; refs?: React.MutableRefObject<Record<string, HTMLTextAreaElement | null>>; onInsert: (variable: '{{nombre}}' | '{{nombre_completo}}') => void }) {
+  return <label>{label}<textarea id={textareaKey} rows={label === 'Mensaje neutral' ? 5 : 3} value={value} onChange={(event) => onChange(event.target.value)} /><span className="row variable-actions"><button type="button" className="secondary" onClick={() => onInsert('{{nombre}}')}>Insertar nombre</button><button type="button" className="secondary" onClick={() => onInsert('{{nombre_completo}}')}>Insertar nombre completo</button></span></label>
 }

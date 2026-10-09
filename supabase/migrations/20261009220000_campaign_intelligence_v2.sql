@@ -41,8 +41,6 @@ create table if not exists public.contact_channel_permissions (
   )
 );
 
-create index if not exists contact_channel_permissions_owner_contact_idx
-  on public.contact_channel_permissions (owner_id, contact_id, channel);
 create index if not exists messages_campaign_frequency_idx
   on public.messages (owner_id, contact_id, sent_at)
   where campaign_id is not null and status = 'SENT';
@@ -61,6 +59,74 @@ create policy "contact_channel_permissions_update_own" on public.contact_channel
   for update to authenticated using ((select auth.uid()) = owner_id) with check ((select auth.uid()) = owner_id);
 revoke all on table public.contact_channel_permissions from anon;
 grant select, insert, update on table public.contact_channel_permissions to authenticated;
+
+-- Set-based permission semantics used by Contacts and campaign audience resolution.
+create or replace function public.resolve_contact_ids_for_selection(
+  p_q text default '', p_gender text default null, p_label_id uuid default null,
+  p_archived text default 'ACTIVE', p_permission text default null, p_exclude_ids uuid[] default '{}'
+)
+returns setof uuid language sql stable security invoker set search_path = public, pg_temp as $$
+  select c.id
+  from public.contacts c
+  where c.owner_id = (select auth.uid())
+    and (nullif(p_q, '') is null or c.display_name ilike '%' || p_q || '%' or c.phone_e164 ilike '%' || p_q || '%')
+    and (p_gender is null or p_gender = '' or c.gender = p_gender)
+    and (p_archived = 'ALL' or (p_archived = 'ARCHIVED' and c.archived_at is not null) or (coalesce(p_archived, 'ACTIVE') = 'ACTIVE' and c.archived_at is null))
+    and (p_label_id is null or exists (select 1 from public.contact_labels cl where cl.owner_id = c.owner_id and cl.contact_id = c.id and cl.label_id = p_label_id))
+    and (p_permission is null or p_permission = ''
+      or (p_permission in ('OPTED_IN','OPTED_OUT') and exists (select 1 from public.contact_channel_permissions cp where cp.owner_id = c.owner_id and cp.contact_id = c.id and cp.channel = 'WHATSAPP' and cp.status = p_permission))
+      or (p_permission = 'UNKNOWN' and not exists (select 1 from public.contact_channel_permissions cp where cp.owner_id = c.owner_id and cp.contact_id = c.id and cp.channel = 'WHATSAPP' and cp.status in ('OPTED_IN','OPTED_OUT'))))
+    and not (c.id = any(coalesce(p_exclude_ids, '{}')))
+  order by c.created_at desc, c.id;
+$$;
+
+create or replace function public.get_contacts_workspace(
+  p_q text default '', p_gender text default null, p_label_id uuid default null,
+  p_archived text default 'ACTIVE', p_permission text default null, p_page integer default 0, p_page_size integer default 50
+)
+returns jsonb language sql stable security invoker set search_path = public, pg_temp as $$
+  with filtered as (
+    select c.*,
+      (select coalesce(jsonb_agg(jsonb_build_object('label_id', cl.label_id, 'labels', jsonb_build_object('id', l.id, 'name', l.name, 'color', l.color))), '[]'::jsonb)
+       from public.contact_labels cl join public.labels l on l.id = cl.label_id and l.owner_id = c.owner_id
+       where cl.owner_id = c.owner_id and cl.contact_id = c.id) as contact_labels
+    from public.contacts c
+    where c.id in (select public.resolve_contact_ids_for_selection(p_q, p_gender, p_label_id, p_archived, p_permission))
+  ), page_rows as (
+    select id, display_name, first_name, phone_e164, gender, gender_reviewed, created_at, contact_labels
+    from filtered order by created_at desc, id offset greatest(p_page, 0) * least(greatest(p_page_size, 1), 100) limit least(greatest(p_page_size, 1), 100)
+  )
+  select jsonb_build_object('contacts', coalesce((select jsonb_agg(to_jsonb(page_rows)) from page_rows), '[]'::jsonb), 'total', (select count(*) from filtered));
+$$;
+
+create or replace function public.preflight_campaign_audience(p_contact_ids uuid[], p_frequency_cap_days integer)
+returns jsonb language plpgsql stable security invoker set search_path = public, pg_temp as $$
+declare v_result jsonb;
+begin
+  if (select auth.uid()) is null then raise exception 'AUTHENTICATION_REQUIRED' using errcode = '28000'; end if;
+  if p_frequency_cap_days is null or p_frequency_cap_days not between 1 and 90 then raise exception 'INVALID_FREQUENCY_CAP' using errcode = '22023'; end if;
+  with selected as (
+    select distinct c.id, c.first_name, c.display_name, c.gender,
+      coalesce(cp.status, 'UNKNOWN') as permission_status,
+      exists (select 1 from public.messages m where m.owner_id = c.owner_id and m.contact_id = c.id and m.campaign_id is not null and m.status = 'SENT' and m.sent_at >= now() - make_interval(days => p_frequency_cap_days)) as recently_contacted
+    from public.contacts c
+    left join public.contact_channel_permissions cp on cp.owner_id = c.owner_id and cp.contact_id = c.id and cp.channel = 'WHATSAPP'
+    where c.owner_id = (select auth.uid()) and c.id = any(p_contact_ids) and c.archived_at is null
+  ), eligible as (
+    select * from selected where permission_status = 'OPTED_IN' and not recently_contacted
+  )
+  select jsonb_build_object(
+    'selected', (select count(*) from selected),
+    'permitted', (select count(*) from selected where permission_status = 'OPTED_IN'),
+    'unknown', (select count(*) from selected where permission_status = 'UNKNOWN'),
+    'opted_out', (select count(*) from selected where permission_status = 'OPTED_OUT'),
+    'recent', (select count(*) from selected where permission_status = 'OPTED_IN' and recently_contacted),
+    'eligible', (select count(*) from eligible),
+    'samples', coalesce((select jsonb_agg(jsonb_build_object('id', id, 'first_name', first_name, 'display_name', display_name, 'gender', gender)) from (select * from eligible order by display_name, id limit 5) sample), '[]'::jsonb)
+  ) into v_result;
+  return v_result;
+end;
+$$;
 
 create or replace function public.resolve_campaign_template(
   p_template text,
@@ -269,3 +335,9 @@ revoke all on function public.cancel_campaign(uuid) from public, anon;
 grant execute on function public.cancel_campaign(uuid) to authenticated;
 revoke all on function public.claim_outbox_batch(integer) from public, anon, authenticated;
 grant execute on function public.claim_outbox_batch(integer) to service_role;
+revoke all on function public.resolve_contact_ids_for_selection(text,text,uuid,text,text,uuid[]) from public, anon;
+grant execute on function public.resolve_contact_ids_for_selection(text,text,uuid,text,text,uuid[]) to authenticated;
+revoke all on function public.get_contacts_workspace(text,text,uuid,text,text,integer,integer) from public, anon;
+grant execute on function public.get_contacts_workspace(text,text,uuid,text,text,integer,integer) to authenticated;
+revoke all on function public.preflight_campaign_audience(uuid[],integer) from public, anon;
+grant execute on function public.preflight_campaign_audience(uuid[],integer) to authenticated;

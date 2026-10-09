@@ -48,6 +48,10 @@ export function humanMessageStatus(status: string): string {
   return ({ QUEUED: 'En cola', SENDING: 'Enviando', SENT: 'Enviado', FAILED: 'Falló', OUTCOME_UNKNOWN: 'Resultado incierto', CANCELLED: 'No enviado' } as Record<string, string>)[status] ?? 'Pendiente'
 }
 
+export function humanMessageType(type: string): string {
+  return type === 'IMAGE' ? 'Imagen' : type === 'AUDIO' ? 'Audio' : 'Texto'
+}
+
 export function humanRecipientStatus(status: string, hasSentSteps = false): string {
   if (status === 'QUEUED' && hasSentSteps) return 'En proceso'
   return ({ QUEUED: 'Pendiente', SENT: 'Completado', FAILED: 'No se pudo completar', OUTCOME_UNKNOWN: 'Requiere revisión', CANCELLED: 'Cancelado' } as Record<string, string>)[status] ?? 'Pendiente'

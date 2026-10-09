@@ -29,15 +29,8 @@ describe('contacts selection model', () => {
     expect(result).toEqual({ ids: ['contact-1'], error: null })
   })
 
-  it('resolves an empty filtered audience through the paged query path', async () => {
-    const builder = {
-      select() { return this },
-      eq() { return this },
-      order() { return this },
-      is() { return this },
-      range: async () => ({ data: [], error: null }),
-    }
-    const client = { from: () => builder } as never
+  it('resolves an empty filtered audience through the set-based RPC', async () => {
+    const client = { rpc: async () => ({ data: [], error: null }) } as never
     const result = await resolveContactIds(client, 'owner-1', { mode: 'filter', archived: 'ACTIVE' })
     expect(result).toEqual({ ids: [], error: null })
   })

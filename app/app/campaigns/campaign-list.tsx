@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CampaignSummary } from '@/lib/campaigns/monitor'
+import { localDateTimeInputToUtc, scheduledRefreshDelay, toLocalDateTimeInputValue } from '@/lib/campaigns/scheduling'
 import { Icon, StatusBadge } from '../ui'
 
 type Campaign = CampaignSummary
@@ -23,7 +24,7 @@ export function CampaignList() {
   const controller = useRef<AbortController | null>(null)
   const [scheduleFor, setScheduleFor] = useState<string | null>(null)
   const [scheduleValue, setScheduleValue] = useState('')
-  const [scheduleMin] = useState(() => new Date(Date.now() + 60000).toISOString().slice(0, 16))
+  const [scheduleMin] = useState(() => toLocalDateTimeInputValue(new Date(Date.now() + 60000)))
 
   const load = useCallback(async () => {
     if (inFlight.current) return
@@ -55,6 +56,11 @@ export function CampaignList() {
     document.addEventListener('visibilitychange', refreshIfVisible)
     return () => { window.clearInterval(interval); window.removeEventListener('focus', refreshIfVisible); document.removeEventListener('visibilitychange', refreshIfVisible); controller.current?.abort() }
   }, [load])
+  useEffect(() => {
+    const timers = campaigns.filter((campaign) => campaign.status === 'SCHEDULED' && campaign.scheduled_at).map((campaign) => window.setTimeout(() => void load(), scheduledRefreshDelay(campaign.scheduled_at as string) + 50))
+    const fallback = window.setInterval(() => { if (campaignsRef.current.some((campaign) => campaign.status === 'SCHEDULED')) void load() }, 30000)
+    return () => { timers.forEach((timer) => window.clearTimeout(timer)); window.clearInterval(fallback) }
+  }, [campaigns, load])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   async function action(id: string, actionName: 'START' | 'PAUSE' | 'RESUME' | 'CANCEL' | 'SCHEDULE', scheduledAt?: string) {
@@ -71,7 +77,7 @@ export function CampaignList() {
       <div className="campaign-counts"><span>{campaign.sentRecipients} completados</span><span>{campaign.failedRecipients} fallidos</span><span>{campaign.unknownRecipients} resultado incierto</span><span>{campaign.pendingRecipients} pendientes</span></div>
       {campaign.status === 'SCHEDULED' && campaign.scheduled_at && <p className="campaign-schedule">Se enviará: {new Date(campaign.scheduled_at).toLocaleString()} · {Intl.DateTimeFormat().resolvedOptions().timeZone}</p>}
       <div className="row campaign-actions">{campaign.status === 'READY' && <><button className="secondary" onClick={() => void action(campaign.id, 'START')}>Enviar ahora</button><button className="secondary" onClick={() => setScheduleFor(campaign.id)}>Programar</button></>}{campaign.status === 'SCHEDULED' && <><button className="secondary" onClick={() => void action(campaign.id, 'START')}>Enviar ahora</button><button className="secondary" onClick={() => setScheduleFor(campaign.id)}>Cambiar programación</button><button className="secondary" onClick={() => void action(campaign.id, 'CANCEL')}>Cancelar</button></>}{campaign.status === 'PAUSED' ? <button className="secondary" onClick={() => void action(campaign.id, 'RESUME')}>Reanudar</button> : ['QUEUED', 'RUNNING'].includes(campaign.status) ? <button className="secondary" onClick={() => void action(campaign.id, 'PAUSE')}>Pausar</button> : null}{['QUEUED', 'RUNNING', 'PAUSED'].includes(campaign.status) && <button className="secondary" onClick={() => void action(campaign.id, 'CANCEL')}>Cancelar</button>}</div>
-      {scheduleFor === campaign.id && <form className="schedule-form" onSubmit={(event) => { event.preventDefault(); if (scheduleValue) void action(campaign.id, 'SCHEDULE', new Date(scheduleValue).toISOString()) }}><label>Fecha y hora local<input type="datetime-local" value={scheduleValue} min={scheduleMin} onChange={(event) => setScheduleValue(event.target.value)} required /></label><span className="muted">Zona horaria: {Intl.DateTimeFormat().resolvedOptions().timeZone}</span><div className="row"><button type="submit">Programar campaña</button><button type="button" className="secondary" onClick={() => setScheduleFor(null)}>Cancelar</button></div></form>}
+      {scheduleFor === campaign.id && <form className="schedule-form" onSubmit={(event) => { event.preventDefault(); if (scheduleValue) void action(campaign.id, 'SCHEDULE', localDateTimeInputToUtc(scheduleValue)) }}><label>Fecha y hora local<input type="datetime-local" value={scheduleValue} min={scheduleMin} onChange={(event) => setScheduleValue(event.target.value)} required /></label><span className="muted">Zona horaria: {Intl.DateTimeFormat().resolvedOptions().timeZone}</span><div className="row"><button type="submit">Programar campaña</button><button type="button" className="secondary" onClick={() => setScheduleFor(null)}>Cancelar</button></div></form>}
     </article>)}
     {!campaigns.length && <div className="card"><p>No hay campañas todavía.</p><Link href="/app/contacts">Elegir contactos</Link></div>}
   </div>

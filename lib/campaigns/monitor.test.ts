@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { humanCampaignStatus, humanMessageStatus, humanRecipientStatus, summarizeCampaign } from './monitor'
+import { humanCampaignStatus, humanMessageStatus, humanMessageType, humanRecipientStatus, summarizeCampaign } from './monitor'
 
 const list = readFileSync(resolve(process.cwd(), 'app/app/campaigns/campaign-list.tsx'), 'utf8')
 const detail = readFileSync(resolve(process.cwd(), 'app/app/campaigns/[id]/campaign-detail.tsx'), 'utf8')
@@ -24,6 +24,7 @@ describe('campaign live monitor', () => {
     expect(humanMessageStatus('OUTCOME_UNKNOWN')).toBe('Resultado incierto')
     expect(humanRecipientStatus('QUEUED', true)).toBe('En proceso')
     expect(humanRecipientStatus('SENT')).toBe('Completado')
+    expect(humanMessageType('AUDIO')).toBe('Audio')
   })
 
   it('defines polling, focus/visibility refresh and overlap protection', () => {

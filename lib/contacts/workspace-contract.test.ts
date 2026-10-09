@@ -10,10 +10,9 @@ const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/20261
 
 describe('contacts operating workspace contract', () => {
   it('keeps search, gender, label and combined filters server-side with real counts', () => {
-    expect(contactsRoute).toContain("select(selection, { count: 'exact' })")
-    expect(contactsRoute).toContain("display_name.ilike.%${query}%,phone_e164.ilike.%${query}%")
-    expect(contactsRoute).toContain("builder = builder.eq('gender', gender)")
-    expect(contactsRoute).toContain("builder = builder.eq('contact_labels.label_id', labelId)")
+    expect(contactsRoute).toContain("rpc('get_contacts_workspace'")
+    expect(contactsRoute).toContain("p_q: query")
+    expect(contactsRoute).toContain("p_permission: permission || null")
     expect(workspace).toContain('contactos coinciden')
     expect(workspace).toContain('query, gender, labelId')
   })
@@ -29,8 +28,7 @@ describe('contacts operating workspace contract', () => {
 
   it('does not silently truncate large filtered selections', () => {
     const selection = readFileSync(resolve(process.cwd(), 'lib/contacts/selection.ts'), 'utf8')
-    expect(selection).toContain('builder.range(offset, offset + batchSize - 1)')
-    expect(selection).toContain("order('created_at', { ascending: false }).order('id', { ascending: true })")
+    expect(selection).toContain("rpc('resolve_contact_ids_for_selection'")
     expect(selection).not.toContain('limit(10000)')
   })
 

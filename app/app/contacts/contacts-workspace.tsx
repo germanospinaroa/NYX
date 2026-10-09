@@ -175,7 +175,7 @@ export function ContactsWorkspace() {
     setLoading(true); setError(null); setMessage(null)
     try {
       const response = await fetch('/api/contacts/permission', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection: serialized, status: value, source: value === 'OPTED_IN' ? bulkPermissionSource : undefined }) })
-      if (!response.ok) setError('No fue posible actualizar el permiso.')
+      if (!response.ok) { const body = await response.json().catch(() => ({})) as { error?: string }; setError(body.error === 'PERMISSION_UPDATE_PARTIAL' ? 'El permiso se actualizó parcialmente. Revisa los contactos seleccionados.' : 'No fue posible actualizar el permiso.') }
       else { setMessage(`Permiso actualizado en ${selectedCount} contactos.`); setSelection(null) }
     } catch { setError('No fue posible actualizar el permiso.') }
     finally { setLoading(false) }
