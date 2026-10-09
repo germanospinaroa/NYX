@@ -22,10 +22,8 @@ export function ContactsWorkspace() {
   const [gender, setGender] = useState('')
   const [labelId, setLabelId] = useState('')
   const [archived, setArchived] = useState('ACTIVE')
-  const [permission, setPermission] = useState('')
   const [selection, setSelection] = useState<ContactSelection | null>(null)
   const [bulkLabelId, setBulkLabelId] = useState('')
-  const [bulkPermissionSource, setBulkPermissionSource] = useState('')
   const [showLabelForm, setShowLabelForm] = useState(false)
   const [newLabelName, setNewLabelName] = useState('')
   const [newLabelColor, setNewLabelColor] = useState('')
@@ -34,8 +32,8 @@ export function ContactsWorkspace() {
   const [loading, setLoading] = useState(false)
   const requestSequence = useRef(0)
 
-  const filtersActive = Boolean(query.trim() || gender || labelId || permission || archived !== 'ACTIVE')
-  const filterSelection = useMemo(() => ({ mode: 'filter' as const, q: query.trim(), gender, labelId, archived, permission, excludeIds: new Set<string>() }), [archived, gender, labelId, permission, query])
+  const filtersActive = Boolean(query.trim() || gender || labelId || archived !== 'ACTIVE')
+  const filterSelection = useMemo(() => ({ mode: 'filter' as const, q: query.trim(), gender, labelId, archived, excludeIds: new Set<string>() }), [archived, gender, labelId, query])
   const selectedCount = selectionCount(selection, total)
   const singleSelectedId = selectedCount === 1 ? (selection?.mode === 'ids' ? [...selection.ids][0] : contacts.find((contact) => selectionIncludes(selection, contact.id))?.id) : null
   const pageIds = useMemo(() => contacts.map((contact) => contact.id), [contacts])
@@ -46,7 +44,7 @@ export function ContactsWorkspace() {
     setLoading(true)
     setError(null)
     const requestId = ++requestSequence.current
-    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), q: query, gender, labelId, archived, permission })
+    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), q: query, gender, labelId, archived })
     try {
       const [contactsResponse, labelsResponse] = await Promise.all([fetch(`/api/contacts?${params}`), fetch('/api/labels')])
       const contactsBody = await contactsResponse.json().catch(() => ({})) as { contacts?: Contact[]; total?: number }
@@ -60,18 +58,17 @@ export function ContactsWorkspace() {
     } finally {
       if (requestId === requestSequence.current) setLoading(false)
     }
-  }, [archived, gender, labelId, page, permission, query])
+  }, [archived, gender, labelId, page, query])
 
   // Server-side filters and pagination are the source of truth for this workspace.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load() }, [load])
 
-  function resetFilters(next: { query?: string; gender?: string; labelId?: string; archived?: string; permission?: string } = {}) {
+  function resetFilters(next: { query?: string; gender?: string; labelId?: string; archived?: string } = {}) {
     setQuery(next.query ?? '')
     setGender(next.gender ?? '')
     setLabelId(next.labelId ?? '')
     setArchived(next.archived ?? 'ACTIVE')
-    setPermission(next.permission ?? '')
     setPage(0)
     setSelection(null)
   }
@@ -112,7 +109,7 @@ export function ContactsWorkspace() {
   function serializedSelection(): SerializedContactSelection | null {
     if (!selection) return null
     if (selection.mode === 'ids') return { mode: 'ids', contactIds: [...selection.ids] }
-    return { mode: 'filter', q: selection.q, gender: selection.gender, labelId: selection.labelId || undefined, archived: selection.archived, permission: selection.permission || undefined, excludeIds: [...selection.excludeIds] }
+    return { mode: 'filter', q: selection.q, gender: selection.gender, labelId: selection.labelId || undefined, archived: selection.archived, excludeIds: [...selection.excludeIds] }
   }
 
   function openCampaign() {
@@ -168,19 +165,6 @@ export function ContactsWorkspace() {
     }
   }
 
-  async function updatePermission(value: string) {
-    const serialized = serializedSelection()
-    if (!value || !serialized) return
-    if (value === 'OPTED_IN' && !bulkPermissionSource) { setError('Selecciona el origen del permiso antes de confirmar.'); return }
-    setLoading(true); setError(null); setMessage(null)
-    try {
-      const response = await fetch('/api/contacts/permission', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection: serialized, status: value, source: value === 'OPTED_IN' ? bulkPermissionSource : undefined }) })
-      if (!response.ok) { const body = await response.json().catch(() => ({})) as { error?: string }; setError(body.error === 'PERMISSION_UPDATE_PARTIAL' ? 'El permiso se actualizó parcialmente. Revisa los contactos seleccionados.' : 'No fue posible actualizar el permiso.') }
-      else { setMessage(`Permiso actualizado en ${selectedCount} contactos.`); setSelection(null) }
-    } catch { setError('No fue posible actualizar el permiso.') }
-    finally { setLoading(false) }
-  }
-
   async function createLabel(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!newLabelName.trim()) return
@@ -202,11 +186,10 @@ export function ContactsWorkspace() {
     {message && <div className="success" role="status">{message}</div>}
     <div className="card stack">
       <section className="contacts-toolbar-section contacts-filter-section"><strong>Filtros</strong>
-        <input className="contacts-search" placeholder="Buscar por nombre o teléfono" value={query} onChange={(event) => resetFilters({ query: event.target.value, gender, labelId, archived, permission })} />
-        <select value={gender} aria-label="Filtrar por género" onChange={(event) => resetFilters({ query, gender: event.target.value, labelId, archived, permission })}><option value="">Todos los géneros</option><option value="MALE">Hombre</option><option value="FEMALE">Mujer</option><option value="UNKNOWN">Desconocido</option></select>
-        <select value={labelId} aria-label="Filtrar por label" onChange={(event) => resetFilters({ query, gender, labelId: event.target.value, archived, permission })}><option value="">Filtrar por label</option>{labels.map((label) => <option key={label.id} value={label.id}>{label.name}</option>)}</select>
+        <input className="contacts-search" placeholder="Buscar por nombre o teléfono" value={query} onChange={(event) => resetFilters({ query: event.target.value, gender, labelId, archived })} />
+        <select value={gender} aria-label="Filtrar por género" onChange={(event) => resetFilters({ query, gender: event.target.value, labelId, archived })}><option value="">Todos los géneros</option><option value="MALE">Hombre</option><option value="FEMALE">Mujer</option><option value="UNKNOWN">Desconocido</option></select>
+        <select value={labelId} aria-label="Filtrar por label" onChange={(event) => resetFilters({ query, gender, labelId: event.target.value, archived })}><option value="">Filtrar por label</option>{labels.map((label) => <option key={label.id} value={label.id}>{label.name}</option>)}</select>
         <select value={archived} aria-label="Filtrar archivados" onChange={(event) => resetFilters({ query, gender, labelId, archived: event.target.value })}><option value="ACTIVE">Activos</option><option value="ARCHIVED">Archivados</option><option value="ALL">Todos</option></select>
-        <select value={permission} aria-label="Filtrar permiso WhatsApp" onChange={(event) => resetFilters({ query, gender, labelId, archived, permission: event.target.value })}><option value="">Permiso WhatsApp</option><option value="OPTED_IN">Confirmado</option><option value="UNKNOWN">Sin confirmar</option><option value="OPTED_OUT">No enviar</option></select>
         <button className="secondary" onClick={() => setShowLabelForm((value) => !value)}>{showLabelForm ? 'Cerrar' : 'Nueva etiqueta'}</button>
       </section>
       {showLabelForm && <form className="label-create-form" onSubmit={(event) => void createLabel(event)}><input placeholder="Nombre de etiqueta" value={newLabelName} onChange={(event) => setNewLabelName(event.target.value)} maxLength={80} required /><input placeholder="Color opcional (#RRGGBB)" value={newLabelColor} onChange={(event) => setNewLabelColor(event.target.value)} maxLength={7} /><button disabled={loading}>Crear etiqueta</button></form>}
@@ -219,8 +202,6 @@ export function ContactsWorkspace() {
         <button onClick={() => void labelAction('ADD')} disabled={loading || !selectedCount || !bulkLabelId}>Asignar label</button>
         <button className="secondary" onClick={() => void labelAction('REMOVE')} disabled={loading || !selectedCount || !bulkLabelId}>Quitar label</button>
         <select defaultValue="" onChange={(event) => void updateGender(event.target.value)} disabled={loading} aria-label="Cambiar género"><option value="">Cambiar género…</option><option value="MALE">Hombre</option><option value="FEMALE">Mujer</option><option value="UNKNOWN">Desconocido</option></select>
-        <select defaultValue="" onChange={(event) => void updatePermission(event.target.value)} disabled={loading} aria-label="Marcar permiso"><option value="">Marcar permiso…</option><option value="OPTED_OUT">No enviar</option><option value="UNKNOWN">Sin confirmar</option><option value="OPTED_IN">Confirmado</option></select>
-        <select value={bulkPermissionSource} onChange={(event) => setBulkPermissionSource(event.target.value)} disabled={loading} aria-label="Origen del permiso"><option value="">Origen del permiso…</option><option>Conversación</option><option>Formulario</option><option>Evento / registro</option><option>Cliente</option><option>Otro</option></select>
         {selectedCount === 1 && singleSelectedId && <Link className="button-link" href={'/app/contacts/' + singleSelectedId + '/message'}>Enviar mensaje</Link>}
         {selectedCount >= 2 && <button className="secondary" onClick={openCampaign} disabled={loading}>Crear campaña</button>}</>}</section>
     </div>
