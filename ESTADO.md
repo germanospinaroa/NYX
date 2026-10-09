@@ -131,8 +131,9 @@ Campaign Intelligence V2 implementado localmente: templates seguros con
 `snapshot` de nombre y texto resuelto, permisos WhatsApp owner-scoped,
 preflight de elegibilidad, protección de frecuencia de 1–90 días y campañas
 programadas con `scheduled_at`/`available_at`. La migration
-`20261009220000_campaign_intelligence_v2.sql` es forward-only y no fue aplicada
-remotamente. El transporte AUDIO multipart y el historial AUDIO ya están
+`20261009215909_campaign_intelligence_v2.sql` es forward-only y fue aplicada
+remotamente; la compatibilidad temporal del RPC legacy permanece hasta el
+despliegue de V2. El transporte AUDIO multipart y el historial AUDIO ya están
 verificados en el árbol local.
 
 ## Siguiente fase

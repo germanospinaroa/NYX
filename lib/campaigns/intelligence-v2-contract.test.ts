@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 
-const migration = readFileSync('supabase/migrations/20261009220000_campaign_intelligence_v2.sql', 'utf8')
+const migration = readFileSync('supabase/migrations/20261009215909_campaign_intelligence_v2.sql', 'utf8')
 const preflight = readFileSync('app/api/campaigns/preflight/route.ts', 'utf8')
 const contactsRoute = readFileSync('app/api/contacts/route.ts', 'utf8')
 

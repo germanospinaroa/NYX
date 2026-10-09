@@ -58,7 +58,7 @@ export function CampaignForm() {
   const remove = (id: string) => setSteps((current) => current.length > 1 ? current.filter((step) => step.id !== id) : current)
   const insertVariable = (stepId: string, field: keyof Step, variable: CampaignVariableToken) => {
     const key = `${stepId}:${field}`
-    const input = document.getElementById(key) as HTMLTextAreaElement | null
+    const input = textareas.current[key]
     const currentValue = String(input?.value ?? '')
     const result = insertTemplateVariable(currentValue, input?.selectionStart ?? currentValue.length, input?.selectionEnd ?? currentValue.length, variable)
     update(stepId, { [field]: result.value })
