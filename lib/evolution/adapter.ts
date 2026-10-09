@@ -1,10 +1,15 @@
 export type SendTextInput = { instance: string; destination: string; text: string }
 export type SendMediaInput = SendTextInput & { mediaUrl: string; caption?: string }
-export type SendAudioInput = Omit<SendTextInput, 'text'> & { audioUrl: string; encoding?: boolean }
+export type SendAudioInput = Omit<SendTextInput, 'text'> & { audio: Blob | ArrayBuffer | Uint8Array; mimeType: string; fileName: string; encoding?: boolean }
 export type ProviderAccepted = { providerMessageId: string; remoteJid?: string; status?: string }
 
 export class OutcomeUnknownError extends Error {
   constructor(message = 'Evolution response outcome is unknown') { super(message); this.name = 'OutcomeUnknownError' }
+}
+
+export class ProviderRejectedError extends Error {
+  readonly status: number
+  constructor(status: number) { super(`Evolution rejected dispatch with HTTP ${status}`); this.name = 'ProviderRejectedError'; this.status = status }
 }
 
 export interface EvolutionAdapter {
