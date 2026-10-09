@@ -2,6 +2,46 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireUser } from '@/lib/supabase/user'
 import { isSameOrigin } from '@/lib/security/request'
+import { publicFailureReason } from '@/lib/campaigns/monitor'
+
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { supabase, user } = await requireUser()
+    const { id } = await params
+    if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: 'CAMPAIGN_NOT_FOUND' }, { status: 404 })
+    const { data: campaign, error: campaignError } = await supabase.from('campaigns').select('id, name, status, created_at, started_at, completed_at, scheduled_at').eq('id', id).eq('owner_id', user.id).maybeSingle()
+    if (campaignError || !campaign) return NextResponse.json({ error: 'CAMPAIGN_NOT_FOUND' }, { status: 404 })
+    const { data: recipients, error: recipientError } = await supabase.from('campaign_recipients').select('id, status, contact_id, messages(id, sequence_index, message_type, status, attempt_count, last_error_code, created_at, claimed_at, sent_at, sequence_id), contacts(display_name)').eq('campaign_id', id).eq('owner_id', user.id).order('created_at', { ascending: true })
+    if (recipientError) return NextResponse.json({ error: 'CAMPAIGN_DETAIL_FAILED' }, { status: 400 })
+    const safeRecipients = (recipients ?? []).map((recipient) => {
+      const messages = [...(recipient.messages ?? [])].sort((a, b) => (a.sequence_index ?? 0) - (b.sequence_index ?? 0))
+      return {
+        id: recipient.id,
+        contactId: recipient.contact_id,
+        contactName: recipient.contacts?.[0]?.display_name ?? 'Contacto',
+        status: recipient.status,
+        steps: messages.map((message, index) => ({
+          index: message.sequence_index ?? index,
+          type: message.message_type,
+          status: message.status,
+          attemptCount: message.attempt_count,
+          createdAt: message.created_at,
+          claimedAt: message.claimed_at,
+          sentAt: message.sent_at,
+          failureReason: publicFailureReason(message.last_error_code),
+          cancelledByPreviousFailure: message.status === 'CANCELLED' && messages.slice(0, index).some((previous) => previous.status === 'FAILED' || previous.status === 'OUTCOME_UNKNOWN'),
+        })),
+      }
+    })
+    const allMessages = safeRecipients.flatMap((recipient) => recipient.steps)
+    const sentRecipients = safeRecipients.filter((recipient) => recipient.status === 'SENT').length
+    const terminalMessages = allMessages.filter((message) => ['SENT', 'FAILED', 'OUTCOME_UNKNOWN', 'CANCELLED'].includes(message.status)).length
+    return NextResponse.json({ campaign: { ...campaign, totalRecipients: safeRecipients.length, sentRecipients, failedRecipients: safeRecipients.filter((item) => item.status === 'FAILED').length, unknownRecipients: safeRecipients.filter((item) => item.status === 'OUTCOME_UNKNOWN').length, pendingRecipients: safeRecipients.filter((item) => !['SENT', 'FAILED', 'OUTCOME_UNKNOWN', 'CANCELLED'].includes(item.status)).length, totalMessages: allMessages.length, processedMessages: terminalMessages, recipients: safeRecipients } })
+  } catch (error) {
+    const message = error instanceof Error && error.message === 'UNAUTHORIZED' ? error.message : 'CAMPAIGN_DETAIL_FAILED'
+    return NextResponse.json({ error: message }, { status: message === 'UNAUTHORIZED' ? 401 : 400 })
+  }
+}
 
 const schema = z.object({ action: z.enum(['START', 'PAUSE', 'RESUME', 'CANCEL']) })
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

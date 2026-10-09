@@ -33,6 +33,10 @@ consultar el contacto durante dispatch. `campaign_recipient` solo pasa a
 es una operación transaccional/set-based y deja la campaña en `READY`; el
 envío requiere después la transición explícita de campaña a `QUEUED`.
 
+El monitor interpreta `SENT` como aceptación del dispatch por el proveedor.
+No significa entregado ni leído; esos estados dependerán de la futura inbox de
+webhooks de Evolution.
+
 ## Principios
 
 - PostgreSQL es la source of truth.

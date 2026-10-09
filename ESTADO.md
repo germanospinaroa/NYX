@@ -25,7 +25,7 @@ Evolution es un proveedor de canal y no el núcleo del dominio.
 
 ## Estado actual
 
-FASE 3B — CAMPAIGN SEQUENCES V1 LOCAL; MIGRACIÓN PENDIENTE
+FASE 3B — CAMPAIGN LIVE MONITOR V1 LOCAL
 
 La aplicación Next.js, el flujo de ingestión, la migración reproducible y las
 pruebas puras están preparados. El proyecto Supabase configurado en
@@ -108,11 +108,11 @@ Plugin nativo de Codex `ecc@ecc`, versión `2.2.3`, revisión `ef648e01899ba3e8d
 
 ## Último milestone
 
-Campaign Sequences V1 implementado localmente: plantilla de hasta 50 pasos,
-snapshot inmutable por recipient, compositor TEXT/IMAGE y reconciliación de
-estado de recipient. No se aplicó la nueva migration, no se tocaron datos
-reales, no se ejecutó el worker contra producción y no se hizo deploy en este
-milestone.
+Campaign Live Monitor V1 implementado localmente: polling sin solapamientos,
+resumen por recipient, detalle de pasos y estados públicos sanitizados. `SENT`
+representa aceptación del dispatch por el proveedor, no entrega ni lectura.
+No se tocaron datos reales, no se ejecutó el worker contra producción y no se
+hizo deploy en este milestone.
 
 ## Siguiente fase
 

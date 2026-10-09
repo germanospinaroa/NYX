@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { resolveContactIds, type SerializedContactSelection } from '@/lib/contacts/selection'
 import { requireUser } from '@/lib/supabase/user'
 import { isSameOrigin } from '@/lib/security/request'
+import { summarizeCampaign } from '@/lib/campaigns/monitor'
 
 const textStep = z.object({ type: z.literal('TEXT'), neutralText: z.string().trim().min(1).max(10000), maleText: z.string().trim().max(10000).optional(), femaleText: z.string().trim().max(10000).optional(), neutralCaption: z.string().max(10000).optional(), maleCaption: z.string().max(10000).optional(), femaleCaption: z.string().max(10000).optional(), mediaPath: z.undefined().optional() })
 const imageStep = z.object({ type: z.literal('IMAGE'), neutralText: z.string().max(1).optional(), maleText: z.string().max(10000).optional(), femaleText: z.string().max(10000).optional(), neutralCaption: z.string().max(10000).optional(), maleCaption: z.string().max(10000).optional(), femaleCaption: z.string().max(10000).optional(), mediaPath: z.string().trim().min(1).max(500) })
@@ -12,9 +13,9 @@ const schema = z.object({ name: z.string().trim().max(120).optional(), steps: z.
 export async function GET() {
   try {
     const { supabase, user } = await requireUser()
-    const { data, error } = await supabase.from('campaigns').select('id, name, status, created_at, scheduled_at, campaign_recipients(status), messages(status)').eq('owner_id', user.id).order('created_at', { ascending: false })
+    const { data, error } = await supabase.from('campaigns').select('id, name, status, created_at, started_at, completed_at, campaign_recipients(status), messages(status)').eq('owner_id', user.id).order('created_at', { ascending: false })
     if (error) return NextResponse.json({ error: 'CAMPAIGNS_LOAD_FAILED' }, { status: 400 })
-    return NextResponse.json({ campaigns: data ?? [] })
+    return NextResponse.json({ campaigns: (data ?? []).map((campaign) => summarizeCampaign(campaign)) })
   } catch (error) {
     const message = error instanceof Error && error.message === 'UNAUTHORIZED' ? error.message : 'CAMPAIGNS_LOAD_FAILED'
     return NextResponse.json({ error: message }, { status: message === 'UNAUTHORIZED' ? 401 : 400 })

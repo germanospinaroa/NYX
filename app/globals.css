@@ -134,6 +134,23 @@ thead .sticky-col { z-index: 5; background: #f8fafc; }
 .message-history-row { display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .message-history-row span { color: var(--muted); font-size: 13px; }
 .message-history-row p { grid-column: 1 / -1; margin: 0; }
+.campaign-card { display: grid; gap: 14px; }
+.campaign-card-heading, .campaign-detail-heading { justify-content: space-between; }
+.campaign-card-heading p, .campaign-detail-heading p { margin: 5px 0 0; }
+.campaign-progress-copy { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.campaign-progress-copy span, .campaign-counts, .campaign-dates { color: var(--muted); font-size: 13px; }
+.campaign-progress { height: 8px; overflow: hidden; border-radius: 999px; background: #e5e7eb; }
+.campaign-progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .2s ease; }
+.campaign-counts { display: flex; gap: 14px; flex-wrap: wrap; }
+.campaign-actions { justify-content: flex-end; }
+.recipient-monitor-row { display: grid; gap: 12px; }
+.recipient-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 0; color: var(--ink); background: transparent; text-align: left; }
+.recipient-toggle > span:first-child { display: grid; gap: 4px; }
+.recipient-toggle small, .recipient-toggle > span:last-child { color: var(--muted); }
+.recipient-steps { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.recipient-step { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 8px 0 8px 14px; border-left: 3px solid var(--line); }
+.recipient-step > div { display: grid; gap: 3px; }
+.recipient-step span, .recipient-step small { color: var(--muted); }
 @media (max-width: 1199px) and (min-width: 761px) {
   .review-table .col-original-name { width: 125px; }
   .review-table .col-name { width: 140px; }
