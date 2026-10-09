@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { EvolutionHttpAdapter } from './evolution-http-adapter'
 import { OutcomeUnknownError } from '../lib/evolution/adapter'
 
-type OutboxMessage = { id: string; campaign_id?: string | null; sequence_id?: string | null; destination: string; message_text: string; message_type?: 'TEXT' | 'IMAGE' | null; caption?: string | null; media_path?: string | null; campaign_recipient_id?: string | null }
+type OutboxMessage = { id: string; campaign_id?: string | null; sequence_id?: string | null; destination: string; message_text: string; message_type?: 'TEXT' | 'IMAGE' | 'AUDIO' | null; caption?: string | null; media_path?: string | null; media_mime_type?: string | null; media_duration_ms?: number | null; campaign_recipient_id?: string | null }
 
 export async function processOutboxOnce(adapter = new EvolutionHttpAdapter()) {
   const supabase = createWorkerClient()
@@ -12,7 +12,7 @@ export async function processOutboxOnce(adapter = new EvolutionHttpAdapter()) {
   for (const message of messages) {
     try {
       const mediaUrl = message.media_path ? await resolveMediaUrl(supabase, message.media_path) : null
-      const accepted = message.media_path ? await adapter.sendMedia({ instance: '', destination: message.destination, text: message.message_text, caption: message.caption ?? undefined, mediaUrl: mediaUrl ?? '' }) : await adapter.sendText({ instance: '', destination: message.destination, text: message.message_text })
+      const accepted = message.message_type === 'AUDIO' ? await adapter.sendAudio({ instance: '', destination: message.destination, audioUrl: mediaUrl ?? '', encoding: true }) : message.message_type === 'IMAGE' ? await adapter.sendMedia({ instance: '', destination: message.destination, text: message.message_text, caption: message.caption ?? undefined, mediaUrl: mediaUrl ?? '' }) : await adapter.sendText({ instance: '', destination: message.destination, text: message.message_text })
        const { data: persisted, error: persistError } = await supabase.from('messages').update({ status: 'SENT', provider_message_id: accepted.providerMessageId, sent_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', message.id).eq('status', 'SENDING').select('id').maybeSingle()
        if (persistError) {
          console.error('OUTBOX_RESULT_PERSIST_FAILED', message.id)

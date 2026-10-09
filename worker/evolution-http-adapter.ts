@@ -1,4 +1,4 @@
-import { OutcomeUnknownError, type EvolutionAdapter, type ProviderAccepted, type SendMediaInput, type SendTextInput } from '../lib/evolution/adapter'
+import { OutcomeUnknownError, type EvolutionAdapter, type ProviderAccepted, type SendAudioInput, type SendMediaInput, type SendTextInput } from '../lib/evolution/adapter'
 
 export class EvolutionHttpAdapter implements EvolutionAdapter {
   private readonly baseUrl = required('EVOLUTION_BASE_URL').replace(/\/$/u, '')
@@ -12,8 +12,11 @@ export class EvolutionHttpAdapter implements EvolutionAdapter {
   async sendMedia(input: SendMediaInput): Promise<ProviderAccepted> {
     return this.post(`/message/sendMedia/${encodeURIComponent(this.instance)}`, { number: input.destination, mediatype: 'image', media: input.mediaUrl, caption: input.caption ?? input.text })
   }
+  async sendAudio(input: SendAudioInput): Promise<ProviderAccepted> {
+    return this.post(`/message/sendWhatsAppAudio/${encodeURIComponent(this.instance)}`, { number: input.destination, audio: input.audioUrl, encoding: input.encoding ?? true })
+  }
 
-  private async post(path: string, payload: Record<string, string>) {
+  private async post(path: string, payload: Record<string, string | boolean>) {
     const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), Number(process.env.EVOLUTION_REQUEST_TIMEOUT_MS ?? 15000))
     try {
       const response = await fetch(`${this.baseUrl}${path}`, { method: 'POST', headers: { apikey: this.apiKey, 'content-type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal })

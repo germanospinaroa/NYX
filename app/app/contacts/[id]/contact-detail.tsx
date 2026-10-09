@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Icon } from '../../ui'
 
 type Contact = { id: string; display_name: string; phone_e164: string; gender: string; notes: string | null; archived_at: string | null; contact_labels?: Array<{ label_id: string; labels?: { name: string; color?: string | null } | Array<{ name: string; color?: string | null }> | null }> }
-type Message = { id: string; created_at: string; message_text: string; message_type?: string | null; caption?: string | null; status: string; sequence_id?: string | null; sequence_index?: number | null }
+type Message = { id: string; created_at: string; message_text: string; message_type?: string | null; caption?: string | null; mediaUrl?: string | null; status: string; sequence_id?: string | null; sequence_index?: number | null }
 const genderName = (gender: string) => gender === 'MALE' ? 'Hombre' : gender === 'FEMALE' ? 'Mujer' : 'Desconocido'
 const initials = (name: string) => name.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()
 

@@ -6,6 +6,7 @@ import { isSameOrigin } from '@/lib/security/request'
 const stepSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('TEXT'), text: z.string().trim().min(1).max(10000), caption: z.string().max(10000).optional(), mediaPath: z.undefined().optional() }),
   z.object({ type: z.literal('IMAGE'), text: z.string().max(1).optional(), caption: z.string().max(10000).optional(), mediaPath: z.string().trim().min(1).max(500) }),
+  z.object({ type: z.literal('AUDIO'), text: z.undefined().optional(), caption: z.undefined().optional(), mediaPath: z.string().trim().min(1).max(500), mimeType: z.enum(['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg']), durationMs: z.number().int().min(1).max(3600000).optional() }),
 ])
 const schema = z.object({ contactId: z.string().uuid(), steps: z.array(stepSchema).min(1).max(50) })
 export async function POST(request: Request) {

@@ -14,7 +14,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       supabase.from('messages').select('id, created_at, message_text, media_path, message_type, caption, status, channel, sequence_id, sequence_index').eq('owner_id', user.id).eq('contact_id', id).order('created_at', { ascending: false }).limit(100),
     ])
     if (contactResult.error || !contactResult.data) return NextResponse.json({ error: 'CONTACT_NOT_FOUND' }, { status: 404 })
-    return NextResponse.json({ contact: contactResult.data, messages: messagesResult.data ?? [] })
+    const messages = await Promise.all((messagesResult.data ?? []).map(async (message) => {
+      if (!message.media_path) return { ...message, media_path: undefined, mediaUrl: null }
+      const signed = await supabase.storage.from('nyx-media').createSignedUrl(message.media_path, 600)
+      return { ...message, media_path: undefined, mediaUrl: signed.data?.signedUrl ?? null }
+    }))
+    return NextResponse.json({ contact: contactResult.data, messages })
   } catch (error) {
     const message = error instanceof Error && error.message === 'UNAUTHORIZED' ? error.message : 'CONTACT_LOAD_FAILED'
     return NextResponse.json({ error: message }, { status: message === 'UNAUTHORIZED' ? 401 : 400 })

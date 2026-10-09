@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { moveStep, validateMessageSteps } from './sequence'
 
 describe('message sequences', () => {
-  it('validates text, image and empty steps', () => {
+  it('validates text, image, audio and empty steps', () => {
     expect(validateMessageSteps([])).toBeTruthy()
     expect(validateMessageSteps([{ type: 'TEXT' }])).toBeTruthy()
     expect(validateMessageSteps([{ type: 'IMAGE' }])).toBeTruthy()
-    expect(validateMessageSteps([{ type: 'TEXT', text: 'Hola' }, { type: 'IMAGE', mediaPath: 'owner/file.png' }])).toBeNull()
+    expect(validateMessageSteps([{ type: 'TEXT', text: 'Hola' }, { type: 'IMAGE', mediaPath: 'owner/file.png' }, { type: 'AUDIO', mediaPath: 'owner/file.webm', mimeType: 'audio/webm' }])).toBeNull()
+    expect(validateMessageSteps([{ type: 'AUDIO', mediaPath: 'owner/file.webm', mimeType: 'audio/x-wav' }])).toBeTruthy()
   })
   it('reorders steps without mutating the original', () => {
     const steps = ['text', 'image', 'text-2']
