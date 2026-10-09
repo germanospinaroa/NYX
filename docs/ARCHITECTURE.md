@@ -13,6 +13,9 @@
 La media se almacena en Storage privado separado de PostgreSQL. PostgreSQL
 guarda el path estable y el estado; el worker solicita una signed URL justo
 antes del dispatch para evitar que una URL temporal expire mientras espera.
+Si el enqueue falla después de subir una imagen, el path queda como media
+pendiente de cleanup; no se eliminan automáticamente objetos reales durante
+este hardening.
 
 ## Message sequences
 

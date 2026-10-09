@@ -67,6 +67,11 @@ claim por estado de secuencia, separa el enqueue individual de snapshots de
 campaña, limita el bucket privado y añade índices para sus FKs. También queda
 pendiente de aplicación remota.
 
+La migration forward-only 20261008190000_fix_messages_destination_check.sql
+corrige el constraint E.164 de messages para aceptar destinos con +. La API
+registra errores de base sanitizados server-side; no se eliminan
+automáticamente objetos de media si el enqueue falla.
+
 La CLI de Supabase no está disponible en este entorno y no existe
 `supabase/config.toml`; el historial remoto queda pendiente de reconciliación
 antes de futuras automatizaciones. Las policies, grants y RPCs fueron
