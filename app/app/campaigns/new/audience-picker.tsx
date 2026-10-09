@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 type Label = { id: string; name: string; color?: string | null }
 export type CampaignSelection =
   | { mode: 'ids'; contactIds: string[] }
-  | { mode: 'filter'; q?: string; gender?: string; labelId?: string; archived?: string; permission?: string; excludeIds?: string[] }
+  | { mode: 'filter'; q?: string; gender?: string; labelId?: string; archived?: string; excludeIds?: string[] }
 type Contact = { id: string; display_name: string; phone_e164: string; gender: string | null }
 
 const PAGE_SIZE = 50
@@ -27,7 +27,6 @@ export function AudiencePicker({ initialSelection, onConfirm, onCancel }: { init
   const [gender, setGender] = useState(initialFilter?.gender ?? '')
   const [labelId, setLabelId] = useState(initialFilter?.labelId ?? '')
   const [archived, setArchived] = useState(initialFilter?.archived ?? 'ACTIVE')
-  const [permission, setPermission] = useState(initialFilter?.permission ?? '')
   const [contacts, setContacts] = useState<Contact[]>([])
   const [labels, setLabels] = useState<Label[]>([])
   const [total, setTotal] = useState(0)
@@ -38,7 +37,7 @@ export function AudiencePicker({ initialSelection, onConfirm, onCancel }: { init
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), q: query, gender, labelId, archived, permission })
+    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), q: query, gender, labelId, archived })
     try {
       const [contactsResponse, labelsResponse] = await Promise.all([fetch(`/api/contacts?${params}`), fetch('/api/labels')])
       const body = await contactsResponse.json().catch(() => ({})) as { contacts?: Contact[]; total?: number }
@@ -52,7 +51,7 @@ export function AudiencePicker({ initialSelection, onConfirm, onCancel }: { init
     } finally {
       setLoading(false)
     }
-  }, [archived, gender, labelId, page, permission, query])
+  }, [archived, gender, labelId, page, query])
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => { void load() }, [load])
@@ -62,10 +61,10 @@ export function AudiencePicker({ initialSelection, onConfirm, onCancel }: { init
   const pageSelected = contacts.length > 0 && contacts.every((contact) => isSelected(draft, contact.id))
   const totalPages = Math.max(Math.ceil(total / PAGE_SIZE), 1)
 
-  function updateFilter(field: 'query' | 'gender' | 'labelId' | 'archived' | 'permission', value: string) {
-    const next = { query, gender, labelId, archived, permission, [field]: value }
-    setQuery(next.query); setGender(next.gender); setLabelId(next.labelId); setArchived(next.archived); setPermission(next.permission); setPage(0)
-    setDraft((current) => current?.mode === 'filter' ? { mode: 'filter', q: next.query, gender: next.gender, labelId: next.labelId, archived: next.archived, permission: next.permission, excludeIds: [] } : current)
+  function updateFilter(field: 'query' | 'gender' | 'labelId' | 'archived', value: string) {
+    const next = { query, gender, labelId, archived, [field]: value }
+    setQuery(next.query); setGender(next.gender); setLabelId(next.labelId); setArchived(next.archived); setPage(0)
+    setDraft((current) => current?.mode === 'filter' ? { mode: 'filter', q: next.query, gender: next.gender, labelId: next.labelId, archived: next.archived, excludeIds: [] } : current)
   }
 
   function toggleContact(id: string) {
@@ -95,14 +94,14 @@ export function AudiencePicker({ initialSelection, onConfirm, onCancel }: { init
   }
 
   function selectAllFiltered() {
-    setDraft({ mode: 'filter', q: query, gender, labelId, archived, permission, excludeIds: [] })
+    setDraft({ mode: 'filter', q: query, gender, labelId, archived, excludeIds: [] })
   }
 
   const summary = useMemo(() => count ? `${count} seleccionados` : 'Aún no has elegido destinatarios.', [count])
 
   return <div className="audience-picker card stack" role="dialog" aria-modal="true" aria-labelledby="audience-picker-title">
     <div className="section-heading"><div><span className="eyebrow">AUDIENCIA</span><h2 id="audience-picker-title">Seleccionar personas</h2></div><button type="button" className="icon-button" aria-label="Cerrar selector de audiencia" onClick={onCancel}>×</button></div>
-    <div className="contacts-toolbar-section contacts-filter-section"><input className="contacts-search" placeholder="Buscar por nombre o teléfono" value={query} onChange={(event) => updateFilter('query', event.target.value)} /><select aria-label="Filtrar por género" value={gender} onChange={(event) => updateFilter('gender', event.target.value)}><option value="">Todos los géneros</option><option value="MALE">Hombre</option><option value="FEMALE">Mujer</option><option value="UNKNOWN">Desconocido</option></select><select aria-label="Filtrar por label" value={labelId} onChange={(event) => updateFilter('labelId', event.target.value)}><option value="">Filtrar por label</option>{labels.map((label) => <option key={label.id} value={label.id}>{label.name}</option>)}</select><select aria-label="Filtrar permiso WhatsApp" value={permission} onChange={(event) => updateFilter('permission', event.target.value)}><option value="">Permiso WhatsApp</option><option value="OPTED_IN">Confirmado</option><option value="UNKNOWN">Sin confirmar</option><option value="OPTED_OUT">No enviar</option></select><select aria-label="Filtrar estado" value={archived} onChange={(event) => updateFilter('archived', event.target.value)}><option value="ACTIVE">Activos</option><option value="ARCHIVED">Archivados</option><option value="ALL">Todos</option></select></div>
+    <div className="contacts-toolbar-section contacts-filter-section"><input className="contacts-search" placeholder="Buscar por nombre o teléfono" value={query} onChange={(event) => updateFilter('query', event.target.value)} /><select aria-label="Filtrar por género" value={gender} onChange={(event) => updateFilter('gender', event.target.value)}><option value="">Todos los géneros</option><option value="MALE">Hombre</option><option value="FEMALE">Mujer</option><option value="UNKNOWN">Desconocido</option></select><select aria-label="Filtrar por label" value={labelId} onChange={(event) => updateFilter('labelId', event.target.value)}><option value="">Filtrar por label</option>{labels.map((label) => <option key={label.id} value={label.id}>{label.name}</option>)}</select><select aria-label="Filtrar estado" value={archived} onChange={(event) => updateFilter('archived', event.target.value)}><option value="ACTIVE">Activos</option><option value="ARCHIVED">Archivados</option><option value="ALL">Todos</option></select></div>
     {error && <div className="inline-alert" role="alert">{error}</div>}
     <div className="contacts-toolbar-section"><button type="button" className="secondary" onClick={togglePage} disabled={loading || !contacts.length}>{pageSelected ? 'Quitar selección de página' : 'Seleccionar página'}</button>{total > contacts.length && draft?.mode !== 'filter' && <button type="button" className="secondary" onClick={selectAllFiltered} disabled={loading}>Seleccionar los {total} resultados</button>}{draft && <><strong>{summary}</strong><button type="button" className="ghost" onClick={() => setDraft(null)}>Limpiar selección</button></>}</div>
     <div className="contacts-result-heading"><strong>{total} personas coinciden</strong><span>{loading ? 'Actualizando…' : summary}</span></div>
