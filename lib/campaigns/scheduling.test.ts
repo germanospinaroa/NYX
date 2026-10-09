@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { localDateTimeInputToUtc, scheduledRefreshDelay, toLocalDateTimeInputValue } from './scheduling'
+import { DUE_RETRY_MS, SCHEDULED_FALLBACK_MS, localDateTimeInputToUtc, scheduledRefreshDelay, toLocalDateTimeInputValue } from './scheduling'
 
 describe('campaign scheduling helpers', () => {
   it('builds datetime-local values in browser local time without ISO shifting', () => {
@@ -13,5 +13,12 @@ describe('campaign scheduling helpers', () => {
     const value = localDateTimeInputToUtc('2026-10-09T09:07')
     expect(new Date(value).toISOString()).toBe(value)
   })
-  it('never schedules a negative timeout', () => expect(scheduledRefreshDelay('2020-01-01T00:00:00Z', Date.now())).toBe(0))
+  it('bounds far future dates and avoids a due-time hot loop', () => {
+    const now = Date.parse('2026-10-09T12:00:00Z')
+    expect(scheduledRefreshDelay('2027-10-09T12:00:00Z', now)).toBe(SCHEDULED_FALLBACK_MS)
+    expect(scheduledRefreshDelay('2026-11-18T12:00:00Z', now)).toBe(SCHEDULED_FALLBACK_MS)
+    expect(scheduledRefreshDelay('2026-10-09T12:00:20Z', now)).toBe(20_000)
+    expect(scheduledRefreshDelay('2026-10-09T11:59:59Z', now)).toBe(DUE_RETRY_MS)
+    expect(scheduledRefreshDelay('not-a-date', now)).toBe(DUE_RETRY_MS)
+  })
 })

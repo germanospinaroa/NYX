@@ -13,6 +13,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     if (campaignError || !campaign) return NextResponse.json({ error: 'CAMPAIGN_NOT_FOUND' }, { status: 404 })
     const { data: recipients, error: recipientError } = await supabase.from('campaign_recipients').select('id, status, contact_id, messages(id, sequence_index, message_type, status, attempt_count, last_error_code, created_at, claimed_at, sent_at, sequence_id), contacts(display_name)').eq('campaign_id', id).eq('owner_id', user.id).order('created_at', { ascending: true })
     if (recipientError) return NextResponse.json({ error: 'CAMPAIGN_DETAIL_FAILED' }, { status: 400 })
+    const { count: totalSteps, error: stepsError } = await supabase.from('campaign_sequence_steps').select('id', { count: 'exact', head: true }).eq('campaign_id', id).eq('owner_id', user.id)
+    if (stepsError) return NextResponse.json({ error: 'CAMPAIGN_DETAIL_FAILED' }, { status: 400 })
     const safeRecipients = (recipients ?? []).map((recipient) => {
       const messages = [...(recipient.messages ?? [])].sort((a, b) => (a.sequence_index ?? 0) - (b.sequence_index ?? 0))
       return {
@@ -36,7 +38,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const allMessages = safeRecipients.flatMap((recipient) => recipient.steps)
     const sentRecipients = safeRecipients.filter((recipient) => recipient.status === 'SENT').length
     const terminalMessages = allMessages.filter((message) => ['SENT', 'FAILED', 'OUTCOME_UNKNOWN', 'CANCELLED'].includes(message.status)).length
-    return NextResponse.json({ campaign: { ...campaign, totalRecipients: safeRecipients.length, sentRecipients, failedRecipients: safeRecipients.filter((item) => item.status === 'FAILED').length, unknownRecipients: safeRecipients.filter((item) => item.status === 'OUTCOME_UNKNOWN').length, pendingRecipients: safeRecipients.filter((item) => !['SENT', 'FAILED', 'OUTCOME_UNKNOWN', 'CANCELLED'].includes(item.status)).length, totalMessages: allMessages.length, processedMessages: terminalMessages, recipients: safeRecipients } })
+    return NextResponse.json({ campaign: { ...campaign, totalRecipients: safeRecipients.length, sentRecipients, failedRecipients: safeRecipients.filter((item) => item.status === 'FAILED').length, unknownRecipients: safeRecipients.filter((item) => item.status === 'OUTCOME_UNKNOWN').length, pendingRecipients: safeRecipients.filter((item) => !['SENT', 'FAILED', 'OUTCOME_UNKNOWN', 'CANCELLED'].includes(item.status)).length, totalSteps: totalSteps ?? 0, totalMessages: allMessages.length, processedMessages: terminalMessages, recipients: safeRecipients } })
   } catch (error) {
     const message = error instanceof Error && error.message === 'UNAUTHORIZED' ? error.message : 'CAMPAIGN_DETAIL_FAILED'
     return NextResponse.json({ error: message }, { status: message === 'UNAUTHORIZED' ? 401 : 400 })
