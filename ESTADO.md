@@ -61,6 +61,12 @@ individual usa una única operación para persistir todos los pasos; el worker
 resuelve media privada mediante signed URL justo antes del envío. Esta
 migración queda pendiente de aplicación remota.
 
+El hardening forward-only 20261008180000_harden_message_sequences.sql corrige
+la precedencia de terminales FAILED/OUTCOME_UNKNOWN/CANCELLED, endurece el
+claim por estado de secuencia, separa el enqueue individual de snapshots de
+campaña, limita el bucket privado y añade índices para sus FKs. También queda
+pendiente de aplicación remota.
+
 La CLI de Supabase no está disponible en este entorno y no existe
 `supabase/config.toml`; el historial remoto queda pendiente de reconciliación
 antes de futuras automatizaciones. Las policies, grants y RPCs fueron
