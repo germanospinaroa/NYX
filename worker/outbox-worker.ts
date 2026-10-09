@@ -18,13 +18,22 @@ export async function processOutboxOnce(adapter = new EvolutionHttpAdapter()) {
          console.error('OUTBOX_RESULT_PERSIST_FAILED', message.id)
          await supabase.from('messages').update({ status: 'OUTCOME_UNKNOWN', last_error_code: 'RESULT_PERSIST_FAILED', last_error_message: null, updated_at: new Date().toISOString() }).eq('id', message.id).eq('status', 'SENDING')
        }
-       if (persisted && message.campaign_recipient_id) await supabase.from('campaign_recipients').update({ status: 'SENT' }).eq('id', message.campaign_recipient_id).eq('status', 'QUEUED')
-       if (persisted && message.sequence_id) await supabase.rpc('refresh_message_sequence_status', { p_sequence_id: message.sequence_id })
+       if (persisted && message.sequence_id) {
+         await supabase.rpc('refresh_message_sequence_status', { p_sequence_id: message.sequence_id })
+         if (message.campaign_recipient_id) await supabase.rpc('refresh_campaign_recipient_status', { p_campaign_recipient_id: message.campaign_recipient_id })
+       } else if (persisted && message.campaign_recipient_id) {
+         // Legacy one-message campaign rows have no sequence to reconcile.
+         await supabase.from('campaign_recipients').update({ status: 'SENT' }).eq('id', message.campaign_recipient_id).eq('status', 'QUEUED')
+       }
     } catch (error) {
       const unknown = error instanceof OutcomeUnknownError
        const { data: failedPersisted } = await supabase.from('messages').update({ status: unknown ? 'OUTCOME_UNKNOWN' : 'FAILED', last_error_code: unknown ? 'OUTCOME_UNKNOWN' : 'PROVIDER_FAILED', last_error_message: unknown ? null : 'Provider rejected dispatch', updated_at: new Date().toISOString() }).eq('id', message.id).eq('status', 'SENDING').select('id').maybeSingle()
-       if (failedPersisted && message.campaign_recipient_id) await supabase.from('campaign_recipients').update({ status: unknown ? 'OUTCOME_UNKNOWN' : 'FAILED' }).eq('id', message.campaign_recipient_id).eq('status', 'QUEUED')
-       if (failedPersisted && message.sequence_id) await supabase.rpc('refresh_message_sequence_status', { p_sequence_id: message.sequence_id })
+       if (failedPersisted && message.sequence_id) {
+         await supabase.rpc('refresh_message_sequence_status', { p_sequence_id: message.sequence_id })
+         if (message.campaign_recipient_id) await supabase.rpc('refresh_campaign_recipient_status', { p_campaign_recipient_id: message.campaign_recipient_id })
+       } else if (failedPersisted && message.campaign_recipient_id) {
+         await supabase.from('campaign_recipients').update({ status: unknown ? 'OUTCOME_UNKNOWN' : 'FAILED' }).eq('id', message.campaign_recipient_id).eq('status', 'QUEUED')
+       }
     }
     if (message.campaign_id) await supabase.rpc('refresh_campaign_status', { p_campaign_id: message.campaign_id })
     await pacing()

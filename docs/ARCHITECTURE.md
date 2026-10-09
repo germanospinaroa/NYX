@@ -20,14 +20,18 @@ este hardening.
 ## Message sequences
 
 Una secuencia pertenece a un owner y contacto, y contiene mensajes outbox con
-sequence_index estable. El primer paso es elegible inicialmente; cada paso
-posterior requiere que el anterior termine SENT. FAILED, CANCELLED y
-OUTCOME_UNKNOWN detienen la secuencia sin retry automático. Un mensaje
-individual es una secuencia de un paso. El modelo también permite asociar una
-secuencia a una campaña futura sin cambiar la identidad de campaign_recipient.
-Los snapshots de campaña existentes siguen siendo outbox de un paso; la
-autoría de campañas multi-paso queda deliberadamente pendiente de aplicar y
-verificar esta migración en Supabase.
+`sequence_index` estable. El primer paso es elegible inicialmente; cada paso
+posterior requiere que el anterior termine `SENT`. `FAILED`, `CANCELLED` y
+`OUTCOME_UNKNOWN` detienen la secuencia sin retry automático. Un mensaje
+individual es una secuencia de un paso.
+
+Las campañas V1 guardan una plantilla de pasos y crean una secuencia propia por
+`campaign_recipient`. El recipient congela `phone_snapshot` y
+`gender_snapshot`; los mensajes de campaña usan esos snapshots y no vuelven a
+consultar el contacto durante dispatch. `campaign_recipient` solo pasa a
+`SENT` después de que todos sus pasos terminan `SENT`. La creación del snapshot
+es una operación transaccional/set-based y deja la campaña en `READY`; el
+envío requiere después la transición explícita de campaña a `QUEUED`.
 
 ## Principios
 

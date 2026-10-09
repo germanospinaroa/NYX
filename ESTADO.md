@@ -25,7 +25,7 @@ Evolution es un proveedor de canal y no el núcleo del dominio.
 
 ## Estado actual
 
-FASE 3B — CONTACTS UX + MESSAGE SEQUENCES LOCAL; MIGRACIÓN PENDIENTE
+FASE 3B — CAMPAIGN SEQUENCES V1 LOCAL; MIGRACIÓN PENDIENTE
 
 La aplicación Next.js, el flujo de ingestión, la migración reproducible y las
 pruebas puras están preparados. El proyecto Supabase configurado en
@@ -72,6 +72,15 @@ corrige el constraint E.164 de messages para aceptar destinos con +. La API
 registra errores de base sanitizados server-side; no se eliminan
 automáticamente objetos de media si el enqueue falla.
 
+La migration forward-only `20261008200000_campaign_sequences_v1.sql` corrige
+el constraint E.164 de `campaign_recipients`, añade la plantilla
+`campaign_sequence_steps` y crea una secuencia ordenada por recipient mediante
+una operación transaccional. El teléfono y género del recipient quedan
+congelados; el worker reconcilia el estado del recipient solo después de
+actualizar la secuencia completa. El nuevo compositor de campañas usa los
+mismos tipos TEXT/IMAGE y upload privado del compositor individual, sin URLs
+manuales ni lenguaje de infraestructura.
+
 La CLI de Supabase no está disponible en este entorno y no existe
 `supabase/config.toml`; el historial remoto queda pendiente de reconciliación
 antes de futuras automatizaciones. Las policies, grants y RPCs fueron
@@ -99,11 +108,11 @@ Plugin nativo de Codex `ecc@ecc`, versión `2.2.3`, revisión `ef648e01899ba3e8d
 
 ## Último milestone
 
-Core Operations implementado localmente: contactos manuales, contexto y
-archivo; labels; composer de mensaje individual; composer de campañas con
-snapshot; outbox y worker/adapter preparados. No se aplicó la nueva migration,
-no se tocaron datos reales, no se ejecutó el worker contra producción y no se
-hizo deploy en este milestone.
+Campaign Sequences V1 implementado localmente: plantilla de hasta 50 pasos,
+snapshot inmutable por recipient, compositor TEXT/IMAGE y reconciliación de
+estado de recipient. No se aplicó la nueva migration, no se tocaron datos
+reales, no se ejecutó el worker contra producción y no se hizo deploy en este
+milestone.
 
 ## Siguiente fase
 
