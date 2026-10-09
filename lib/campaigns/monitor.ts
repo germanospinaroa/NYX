@@ -12,6 +12,7 @@ export type CampaignSummaryInput = {
   created_at: string
   started_at?: string | null
   completed_at?: string | null
+  scheduled_at?: string | null
   campaign_recipients?: CampaignRecipientSummary[]
   messages?: CampaignMessageSummary[]
 }
@@ -33,6 +34,7 @@ export type CampaignSummary = CampaignSummaryInput & {
 
 export function humanCampaignStatus(status: string, sentRecipients = 0): string {
   if (status === 'READY') return 'Lista para enviar'
+  if (status === 'SCHEDULED') return 'Programada'
   if (status === 'QUEUED') return 'Iniciando envío…'
   if (status === 'RUNNING') return 'Enviando…'
   if (status === 'PAUSED') return 'Pausada'

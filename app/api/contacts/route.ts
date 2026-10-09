@@ -17,18 +17,26 @@ export async function GET(request: Request) {
     const gender = url.searchParams.get('gender')
     const labelId = url.searchParams.get('labelId')
     const archived = url.searchParams.get('archived') ?? 'ACTIVE'
+    const permission = url.searchParams.get('permission') ?? ''
     if (gender && !['MALE', 'FEMALE', 'UNKNOWN'].includes(gender)) return NextResponse.json({ error: 'INVALID_GENDER_FILTER' }, { status: 422 })
     if (labelId && !z.string().uuid().safeParse(labelId).success) return NextResponse.json({ error: 'INVALID_LABEL_FILTER' }, { status: 422 })
     if (!['ACTIVE', 'ARCHIVED', 'ALL'].includes(archived)) return NextResponse.json({ error: 'INVALID_ARCHIVE_FILTER' }, { status: 422 })
-    const selection = labelId
-      ? 'id, display_name, first_name, phone_e164, gender, gender_reviewed, created_at, contact_labels!inner(label_id, labels(id, name, color))'
-      : 'id, display_name, first_name, phone_e164, gender, gender_reviewed, created_at, contact_labels(label_id, labels(id, name, color))'
+    if (permission && !['OPTED_IN', 'OPTED_OUT', 'UNKNOWN'].includes(permission)) return NextResponse.json({ error: 'INVALID_PERMISSION_FILTER' }, { status: 422 })
+    const labelRelation = labelId ? 'contact_labels!inner(label_id, labels(id, name, color))' : 'contact_labels(label_id, labels(id, name, color))'
+    const permissionRelation = permission && permission !== 'UNKNOWN' ? ', contact_channel_permissions!inner(status, channel)' : ', contact_channel_permissions(status, channel)'
+    const selection = `id, display_name, first_name, phone_e164, gender, gender_reviewed, created_at, ${labelRelation}${permissionRelation}`
     let builder = supabase.from('contacts').select(selection, { count: 'exact' }).eq('owner_id', user.id).order('created_at', { ascending: false }).order('id', { ascending: true }).range(page * pageSize, page * pageSize + pageSize - 1)
     if (query) builder = builder.or(`display_name.ilike.%${query}%,phone_e164.ilike.%${query}%`)
     if (gender && ['MALE', 'FEMALE', 'UNKNOWN'].includes(gender)) builder = builder.eq('gender', gender)
     if (labelId) builder = builder.eq('contact_labels.label_id', labelId)
     if (archived === 'ARCHIVED') builder = builder.not('archived_at', 'is', null)
     else if (archived === 'ACTIVE') builder = builder.is('archived_at', null)
+    if (permission) {
+      builder = builder.eq('contact_channel_permissions.channel', 'WHATSAPP')
+      builder = permission === 'UNKNOWN'
+        ? builder.or('status.eq.UNKNOWN,status.is.null', { foreignTable: 'contact_channel_permissions' })
+        : builder.eq('contact_channel_permissions.status', permission)
+    }
     const { data, count, error } = await builder
     if (error) return NextResponse.json({ error: 'CONTACTS_LOAD_FAILED' }, { status: 400 })
     return NextResponse.json({ contacts: data ?? [], total: count ?? 0, page, pageSize })

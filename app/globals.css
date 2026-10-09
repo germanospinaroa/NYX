@@ -572,3 +572,15 @@ input[type=color] { width: 40px; min-height: 40px; padding: 3px; cursor: pointer
 @keyframes nyx-shimmer { to { background-position: -200% 0; } }
 @media (max-width: 900px) { .conversation-preview { position: static; } .conversation-viewport { min-height: 320px; } }
 @media (prefers-reduced-motion: reduce) { .link-preview-skeleton { animation: none; } }
+
+.permission-panel { display: grid; gap: 12px; }
+.permission-panel .section-heading { align-items: center; }
+.permission-controls { display: flex; flex-wrap: wrap; gap: 14px; }
+.permission-controls label { min-width: 180px; }
+.permission-unknown { color: var(--nyx-muted); background: var(--nyx-surface-subtle); }
+.permission-opted_in { color: #176b4b; background: #e7f5ed; }
+.permission-opted_out { color: #9b3030; background: #fbeaea; }
+.campaign-schedule, .schedule-detail { display: grid; gap: 6px; margin: 12px 0 0; color: var(--nyx-muted); font-size: 13px; }
+.schedule-form { display: grid; gap: 10px; max-width: 360px; margin-top: 12px; padding: 14px; border-top: 1px solid var(--nyx-border); }
+.schedule-form label { display: grid; gap: 6px; }
+.schedule-form input { min-height: 40px; }

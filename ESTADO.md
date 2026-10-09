@@ -127,6 +127,14 @@ representa aceptación del dispatch por el proveedor, no entrega ni lectura.
 No se tocaron datos reales, no se ejecutó el worker contra producción y no se
 hizo deploy en este milestone.
 
+Campaign Intelligence V2 implementado localmente: templates seguros con
+`snapshot` de nombre y texto resuelto, permisos WhatsApp owner-scoped,
+preflight de elegibilidad, protección de frecuencia de 1–90 días y campañas
+programadas con `scheduled_at`/`available_at`. La migration
+`20261009220000_campaign_intelligence_v2.sql` es forward-only y no fue aplicada
+remotamente. El transporte AUDIO multipart y el historial AUDIO ya están
+verificados en el árbol local.
+
 ## Siguiente fase
 
 Aplicar y verificar `20261008150000_core_operations.sql` mediante el flujo
