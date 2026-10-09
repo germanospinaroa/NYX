@@ -83,6 +83,10 @@ webhooks. Retries operacionales, caída real, restart/reconnect y provider
 idempotency key quedan explícitamente como no verificados y no bloquean el
 cierre del spike.
 
+El worker dispone localmente de un modo one-shot y uno persistente, ambos
+versionados mediante tsx. Permanecen apagados durante QA; el primer live test
+deberá usar OUTBOX_BATCH_SIZE=1 y detenerse antes del segundo paso.
+
 ## ECC
 
 Plugin nativo de Codex `ecc@ecc`, versión `2.2.3`, revisión `ef648e01899ba3e8dc6371642deaaf64b4477775`.
