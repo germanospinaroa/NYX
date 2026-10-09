@@ -12,9 +12,10 @@ describe('contacts operating workspace contract', () => {
   it('keeps search, gender, label and combined filters server-side with real counts', () => {
     expect(contactsRoute).toContain("rpc('get_contacts_workspace'")
     expect(contactsRoute).toContain("p_q: query")
-    expect(contactsRoute).toContain("p_permission: permission || null")
+    expect(contactsRoute).toContain("p_permission: null")
     expect(workspace).toContain('contactos coinciden')
     expect(workspace).toContain('query, gender, labelId')
+    expect(workspace).not.toContain('Permiso WhatsApp')
   })
 
   it('selects all filtered results through a filter descriptor and batch RPCs', () => {
