@@ -5,15 +5,15 @@ import { describe, expect, it } from 'vitest'
 const read = (file: string) => readFileSync(resolve(process.cwd(), file), 'utf8')
 
 describe('campaign intelligence UI contracts', () => {
-  it('exposes permission filtering and explicit bulk permission actions', () => {
+  it('keeps campaign permission gating out of the active UX', () => {
     const workspace = read('app/app/contacts/contacts-workspace.tsx')
     const detail = read('app/app/contacts/[id]/contact-detail.tsx')
-    expect(workspace).toContain('Filtrar permiso WhatsApp')
-    expect(workspace).toContain('Marcar permiso')
-    expect(workspace).toContain('Origen del permiso')
-    expect(detail).toContain('Permiso para campañas')
-    expect(detail).toContain('Confirmado')
-    expect(detail).toContain('No enviar')
+    const picker = read('app/app/campaigns/new/audience-picker.tsx')
+    expect(workspace).not.toContain('Permiso WhatsApp')
+    expect(workspace).not.toContain('Marcar permiso')
+    expect(workspace).not.toContain('Origen del permiso')
+    expect(detail).not.toContain('Permiso para campañas')
+    expect(picker).not.toContain('Permiso WhatsApp')
   })
 
   it('keeps scheduling user-facing and out of browser timers', () => {
