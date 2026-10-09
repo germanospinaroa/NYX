@@ -90,6 +90,7 @@ export function CampaignForm() {
   }
   async function submit(event: React.FormEvent) {
     event.preventDefault(); setError(null)
+    if (audiencePickerOpen) return
     if (!selection) { setError('Selecciona una audiencia antes de preparar la campaña.'); return }
     if (!preflight || preflightLoading) { setError('Espera a que termine el cálculo de la audiencia.'); return }
     if (preflight.eligible < 1) { setError('No hay personas elegibles en esta audiencia.'); return }
@@ -113,13 +114,14 @@ export function CampaignForm() {
     return { id: step.id, type: step.type, text: resolved.text, caption: resolved.caption, mediaPath: step.mediaPath, previewUrl: step.previewUrl, mimeType: step.mimeType, durationMs: step.durationMs }
   })
 
-  const chooseAudience = (next: CampaignSelection | null) => { setSelection(next); setAudiencePickerOpen(false); setSampleIndex(0) }
+  const chooseAudience = (next: CampaignSelection | null) => { setSelection(next); setAudiencePickerOpen(false); setSampleIndex(0); setError(null) }
+  const openAudiencePicker = () => { setError(null); setAudiencePickerOpen(true) }
 
   return <form className="campaign-sequence-form" onSubmit={(event) => void submit(event)}>
     {error && <div className="inline-alert" role="alert">{error}</div>}
     {audiencePickerOpen ? <AudiencePicker initialSelection={selection} onConfirm={chooseAudience} onCancel={() => setAudiencePickerOpen(false)} /> : <div className="campaign-composer-layout"><div className="card stack">
-      <div className="section-heading"><div><span className="eyebrow">AUDIENCIA</span><h1>Nueva campaña</h1></div><button type="button" className="secondary" onClick={() => setAudiencePickerOpen(true)}>{selection ? 'Editar audiencia' : 'Seleccionar personas'}</button></div>
-      <section className="audience-summary panel"><strong>Audiencia</strong>{selection ? <><span>{audience}</span>{preflightLoading && <span className="muted">Calculando elegibilidad…</span>}{preflight && <div className="campaign-preflight"><span>{preflight.eligible} elegibles</span><span>{preflight.unknown} sin confirmar</span><span>{preflight.optedOut} no enviar</span><span>{preflight.recent} contactados recientemente</span></div>} {preflight?.eligible === 0 && <div className="inline-alert" role="status">No hay personas elegibles en esta audiencia.</div>}<button type="button" className="ghost" onClick={() => setSelection(null)}>Limpiar audiencia</button></> : <><span>Aún no has elegido destinatarios.</span><button type="button" onClick={() => setAudiencePickerOpen(true)}>Seleccionar personas</button></>}</section>
+      <div className="section-heading"><div><span className="eyebrow">AUDIENCIA</span><h1>Nueva campaña</h1></div><button type="button" className="secondary" onClick={openAudiencePicker}>{selection ? 'Editar audiencia' : 'Seleccionar personas'}</button></div>
+      <section className="audience-summary panel"><strong>Audiencia</strong>{selection ? <><span>{audience}</span>{preflightLoading && <span className="muted">Calculando elegibilidad…</span>}{preflight && <div className="campaign-preflight"><span>{preflight.eligible} elegibles</span><span>{preflight.unknown} sin confirmar</span><span>{preflight.optedOut} no enviar</span><span>{preflight.recent} contactados recientemente</span></div>} {preflight?.eligible === 0 && <div className="inline-alert" role="status">No hay personas elegibles en esta audiencia.</div>}<button type="button" className="ghost" onClick={() => setSelection(null)}>Limpiar audiencia</button></> : <><span>Aún no has elegido destinatarios.</span><button type="button" onClick={openAudiencePicker}>Seleccionar personas</button></>}</section>
       <label>Nombre de campaña (opcional)<input value={name} onChange={(event) => setName(event.target.value)} /></label>
       <label>Protección de frecuencia<select value={frequencyCapDays} onChange={(event) => setFrequencyCapDays(Number(event.target.value))}><option value={1}>1 día</option><option value={3}>3 días</option><option value={7}>7 días</option><option value={14}>14 días</option><option value={30}>30 días</option><option value={90}>90 días</option></select></label>
       {preflight && <div className="campaign-preflight"><strong>Antes de preparar</strong><span>Seleccionados: {preflight.selected}</span><span>Con permiso: {preflight.permitted}</span><span>Sin confirmar: {preflight.unknown}</span><span>No enviar: {preflight.optedOut}</span><span>Contactados recientemente: {preflight.recent}</span><strong>Elegibles: {preflight.eligible}</strong></div>}
@@ -130,7 +132,7 @@ export function CampaignForm() {
       </article>)}
       <div className="row"><button type="button" className="secondary" onClick={() => setSteps((current) => [...current, makeStep('TEXT')])}>+ Texto</button><button type="button" className="secondary" onClick={() => setSteps((current) => [...current, makeStep('IMAGE')])}>+ Imagen</button><button type="button" className="secondary" onClick={() => setSteps((current) => [...current, makeStep('AUDIO')])}>+ Audio</button></div>
     </div><aside className="composer-preview"><div className="row"><strong>Vista como</strong>{preflight?.samples?.length ? <select value={sampleIndex} onChange={(event) => setSampleIndex(Number(event.target.value))}>{preflight.samples.map((person, index) => <option key={person.display_name + index} value={index}>{person.display_name}</option>)}</select> : <span>muestra elegible</span>}</div><small className="muted">Variante: {sampleVariant === 'NEUTRAL' ? 'general' : sampleVariant === 'MALE' ? 'hombre' : 'mujer'}</small><ConversationPreview steps={previewSteps} recipient={{ name: sample?.display_name ?? audience }} /></aside></div>}
-    <div className="row composer-footer"><button type="button" className="secondary" onClick={() => router.back()}>Cancelar</button><button disabled={saving || steps.some((step) => step.uploading)}>{saving ? 'Preparando…' : 'Preparar campaña'}</button></div>
+    {!audiencePickerOpen && <div className="row composer-footer"><button type="button" className="secondary" onClick={() => router.back()}>Cancelar</button><button disabled={saving || steps.some((step) => step.uploading) || !selection || preflightLoading || !preflight || preflight.eligible < 1}>{saving ? 'Preparando…' : 'Preparar campaña'}</button></div>}
   </form>
 }
 
