@@ -17,12 +17,10 @@ export async function GET(request: Request) {
     const gender = url.searchParams.get('gender')
     const labelId = url.searchParams.get('labelId')
     const archived = url.searchParams.get('archived') ?? 'ACTIVE'
-    const permission = url.searchParams.get('permission') ?? ''
     if (gender && !['MALE', 'FEMALE', 'UNKNOWN'].includes(gender)) return NextResponse.json({ error: 'INVALID_GENDER_FILTER' }, { status: 422 })
     if (labelId && !z.string().uuid().safeParse(labelId).success) return NextResponse.json({ error: 'INVALID_LABEL_FILTER' }, { status: 422 })
     if (!['ACTIVE', 'ARCHIVED', 'ALL'].includes(archived)) return NextResponse.json({ error: 'INVALID_ARCHIVE_FILTER' }, { status: 422 })
-    if (permission && !['OPTED_IN', 'OPTED_OUT', 'UNKNOWN'].includes(permission)) return NextResponse.json({ error: 'INVALID_PERMISSION_FILTER' }, { status: 422 })
-    const { data, error } = await supabase.rpc('get_contacts_workspace', { p_q: query, p_gender: gender || null, p_label_id: labelId || null, p_archived: archived, p_permission: permission || null, p_page: page, p_page_size: pageSize })
+    const { data, error } = await supabase.rpc('get_contacts_workspace', { p_q: query, p_gender: gender || null, p_label_id: labelId || null, p_archived: archived, p_permission: null, p_page: page, p_page_size: pageSize })
     if (error) return NextResponse.json({ error: 'CONTACTS_LOAD_FAILED' }, { status: 400 })
     const workspace = (data ?? {}) as { contacts?: unknown[]; total?: number }
     return NextResponse.json({ contacts: workspace.contacts ?? [], total: workspace.total ?? 0, page, pageSize })
