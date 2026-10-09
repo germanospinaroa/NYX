@@ -4,11 +4,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ConversationPreview } from '@/app/app/messages/conversation-preview'
+import { AudiencePicker, type CampaignSelection } from './audience-picker'
 import { resolveCampaignStep, resolveCampaignVariant } from '@/lib/campaigns/personalization'
 import { insertTemplateVariable, type CampaignVariableToken } from '@/lib/campaigns/variables'
 import { validateAudioFile, validateImageFile } from '@/lib/messages/upload'
 
-type Selection = { mode: 'ids'; contactIds: string[] } | { mode: 'filter'; q?: string; gender?: string; labelId?: string; archived?: string; permission?: string; excludeIds?: string[] }
 type StepType = 'TEXT' | 'IMAGE' | 'AUDIO'
 type Step = { id: string; type: StepType; neutralText: string; maleText: string; femaleText: string; neutralCaption: string; maleCaption: string; femaleCaption: string; mediaPath?: string; mimeType?: string; durationMs?: number; previewUrl?: string; uploading?: boolean }
 type Preflight = { selected: number; permitted: number; unknown: number; optedOut: number; recent: number; eligible: number; samples?: Array<{ first_name: string | null; display_name: string; gender: string | null }> }
@@ -24,11 +24,13 @@ function clean(step: Step) {
 
 export function CampaignForm() {
   const router = useRouter()
-  const [selection, setSelection] = useState<Selection | null>(null)
+  const [selection, setSelection] = useState<CampaignSelection | null>(null)
   const [name, setName] = useState('')
   const [frequencyCapDays, setFrequencyCapDays] = useState(7)
   const [steps, setSteps] = useState<Step[]>([base()])
   const [preflight, setPreflight] = useState<Preflight | null>(null)
+  const [preflightLoading, setPreflightLoading] = useState(false)
+  const [audiencePickerOpen, setAudiencePickerOpen] = useState(false)
   const [sampleIndex, setSampleIndex] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -39,18 +41,26 @@ export function CampaignForm() {
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const raw = window.sessionStorage.getItem('nyx-campaign-selection')
-    if (raw) try { setSelection(JSON.parse(raw) as Selection) } catch { setError('No fue posible recuperar la audiencia seleccionada.') }
+    if (raw) try { setSelection(JSON.parse(raw) as CampaignSelection) } catch { setError('No fue posible recuperar la audiencia seleccionada.') }
   }, [])
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (!selection) return
+    if (!selection) { setPreflight(null); setPreflightLoading(false); return }
+    let active = true
+    setPreflight(null)
+    setPreflightLoading(true)
     void fetch('/api/campaigns/preflight', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection, frequencyCapDays }) }).then(async (response) => {
+      if (!active) return
       if (response.ok) setPreflight(await response.json() as Preflight)
-    })
+      else setError('No fue posible calcular la audiencia.')
+    }).catch(() => { if (active) setError('No fue posible calcular la audiencia.') }).finally(() => { if (active) setPreflightLoading(false) })
+    return () => { active = false }
   }, [frequencyCapDays, selection])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  const audience = selection?.mode === 'ids' ? `${selection.contactIds.length} contactos seleccionados` : selection ? 'resultados filtrados' : 'sin audiencia'
+  const audience = preflight ? `${preflight.selected} seleccionados` : selection?.mode === 'ids' ? `${selection.contactIds.length} seleccionados` : selection ? 'calculando…' : 'Aún no has elegido destinatarios.'
   const sample = preflight?.samples?.[sampleIndex] ?? null
   const sampleVariant = sample ? resolveCampaignVariant(sample.gender, steps) : 'NEUTRAL'
   const update = (id: string, patch: Partial<Step>) => setSteps((current) => current.map((step) => step.id === id ? { ...step, ...patch } : step))
@@ -81,6 +91,8 @@ export function CampaignForm() {
   async function submit(event: React.FormEvent) {
     event.preventDefault(); setError(null)
     if (!selection) { setError('Selecciona una audiencia antes de preparar la campaña.'); return }
+    if (!preflight || preflightLoading) { setError('Espera a que termine el cálculo de la audiencia.'); return }
+    if (preflight.eligible < 1) { setError('No hay personas elegibles en esta audiencia.'); return }
     if (steps.some((step) => step.type === 'TEXT' && !step.neutralText.trim())) { setError('Cada paso de texto necesita un mensaje neutral.'); return }
     if (steps.some((step) => step.type !== 'TEXT' && !step.mediaPath)) { setError('Cada paso multimedia necesita un archivo.'); return }
     setSaving(true)
@@ -101,10 +113,13 @@ export function CampaignForm() {
     return { id: step.id, type: step.type, text: resolved.text, caption: resolved.caption, mediaPath: step.mediaPath, previewUrl: step.previewUrl, mimeType: step.mimeType, durationMs: step.durationMs }
   })
 
+  const chooseAudience = (next: CampaignSelection | null) => { setSelection(next); setAudiencePickerOpen(false); setSampleIndex(0) }
+
   return <form className="campaign-sequence-form" onSubmit={(event) => void submit(event)}>
     {error && <div className="inline-alert" role="alert">{error}</div>}
-    <div className="campaign-composer-layout"><div className="card stack">
-      <div className="section-heading"><div><span className="eyebrow">AUDIENCIA</span><h1>Nueva campaña</h1></div><span className="muted">{audience}</span></div>
+    {audiencePickerOpen ? <AudiencePicker initialSelection={selection} onConfirm={chooseAudience} onCancel={() => setAudiencePickerOpen(false)} /> : <div className="campaign-composer-layout"><div className="card stack">
+      <div className="section-heading"><div><span className="eyebrow">AUDIENCIA</span><h1>Nueva campaña</h1></div><button type="button" className="secondary" onClick={() => setAudiencePickerOpen(true)}>{selection ? 'Editar audiencia' : 'Seleccionar personas'}</button></div>
+      <section className="audience-summary panel"><strong>Audiencia</strong>{selection ? <><span>{audience}</span>{preflightLoading && <span className="muted">Calculando elegibilidad…</span>}{preflight && <div className="campaign-preflight"><span>{preflight.eligible} elegibles</span><span>{preflight.unknown} sin confirmar</span><span>{preflight.optedOut} no enviar</span><span>{preflight.recent} contactados recientemente</span></div>} {preflight?.eligible === 0 && <div className="inline-alert" role="status">No hay personas elegibles en esta audiencia.</div>}<button type="button" className="ghost" onClick={() => setSelection(null)}>Limpiar audiencia</button></> : <><span>Aún no has elegido destinatarios.</span><button type="button" onClick={() => setAudiencePickerOpen(true)}>Seleccionar personas</button></>}</section>
       <label>Nombre de campaña (opcional)<input value={name} onChange={(event) => setName(event.target.value)} /></label>
       <label>Protección de frecuencia<select value={frequencyCapDays} onChange={(event) => setFrequencyCapDays(Number(event.target.value))}><option value={1}>1 día</option><option value={3}>3 días</option><option value={7}>7 días</option><option value={14}>14 días</option><option value={30}>30 días</option><option value={90}>90 días</option></select></label>
       {preflight && <div className="campaign-preflight"><strong>Antes de preparar</strong><span>Seleccionados: {preflight.selected}</span><span>Con permiso: {preflight.permitted}</span><span>Sin confirmar: {preflight.unknown}</span><span>No enviar: {preflight.optedOut}</span><span>Contactados recientemente: {preflight.recent}</span><strong>Elegibles: {preflight.eligible}</strong></div>}
@@ -114,7 +129,7 @@ export function CampaignForm() {
         {step.type === 'TEXT' ? <><VariableTextarea label="Mensaje neutral" value={step.neutralText} onChange={(value) => update(step.id, { neutralText: value })} textareaKey={`${step.id}:neutralText`} registerRef={registerTextarea} onInsert={(variable) => insertVariable(step.id, 'neutralText', variable)} /><VariableTextarea label="Variante hombre" value={step.maleText} onChange={(value) => update(step.id, { maleText: value })} textareaKey={`${step.id}:maleText`} registerRef={registerTextarea} onInsert={(variable) => insertVariable(step.id, 'maleText', variable)} /><VariableTextarea label="Variante mujer" value={step.femaleText} onChange={(value) => update(step.id, { femaleText: value })} textareaKey={`${step.id}:femaleText`} registerRef={registerTextarea} onInsert={(variable) => insertVariable(step.id, 'femaleText', variable)} /></> : <><label className="upload-dropzone"><strong>{step.type === 'IMAGE' ? 'Subir imagen' : 'Subir audio'}</strong><small>{step.type === 'IMAGE' ? 'JPG, PNG o WebP · hasta 8 MB' : 'WebM, OGG, MP4 o MP3 · hasta 16 MB'}</small><input type="file" accept={step.type === 'IMAGE' ? 'image/jpeg,image/png,image/webp' : 'audio/webm,audio/ogg,audio/mp4,audio/mpeg'} onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(step.id, file, step.type) }} /></label>{step.previewUrl && (step.type === 'IMAGE' ? <img className="sequence-image-preview" src={step.previewUrl} alt="Vista previa" /> : <audio controls src={step.previewUrl} aria-label="Vista previa del audio" />)}{step.type === 'IMAGE' && <details><summary>Variantes de caption</summary><VariableTextarea label="Caption neutral" value={step.neutralCaption} onChange={(value) => update(step.id, { neutralCaption: value })} textareaKey={`${step.id}:neutralCaption`} registerRef={registerTextarea} onInsert={(variable) => insertVariable(step.id, 'neutralCaption', variable)} /><VariableTextarea label="Caption hombre" value={step.maleCaption} onChange={(value) => update(step.id, { maleCaption: value })} textareaKey={`${step.id}:maleCaption`} registerRef={registerTextarea} onInsert={(variable) => insertVariable(step.id, 'maleCaption', variable)} /><VariableTextarea label="Caption mujer" value={step.femaleCaption} onChange={(value) => update(step.id, { femaleCaption: value })} textareaKey={`${step.id}:femaleCaption`} registerRef={registerTextarea} onInsert={(variable) => insertVariable(step.id, 'femaleCaption', variable)} /></details>}<span>{step.uploading ? 'Subiendo…' : step.mediaPath ? 'Archivo listo' : 'Selecciona un archivo'}</span></>}
       </article>)}
       <div className="row"><button type="button" className="secondary" onClick={() => setSteps((current) => [...current, makeStep('TEXT')])}>+ Texto</button><button type="button" className="secondary" onClick={() => setSteps((current) => [...current, makeStep('IMAGE')])}>+ Imagen</button><button type="button" className="secondary" onClick={() => setSteps((current) => [...current, makeStep('AUDIO')])}>+ Audio</button></div>
-    </div><aside className="composer-preview"><div className="row"><strong>Vista como</strong>{preflight?.samples?.length ? <select value={sampleIndex} onChange={(event) => setSampleIndex(Number(event.target.value))}>{preflight.samples.map((person, index) => <option key={person.display_name + index} value={index}>{person.display_name}</option>)}</select> : <span>muestra elegible</span>}</div><small className="muted">Variante: {sampleVariant === 'NEUTRAL' ? 'general' : sampleVariant === 'MALE' ? 'hombre' : 'mujer'}</small><ConversationPreview steps={previewSteps} recipient={{ name: sample?.display_name ?? audience }} /></aside></div>
+    </div><aside className="composer-preview"><div className="row"><strong>Vista como</strong>{preflight?.samples?.length ? <select value={sampleIndex} onChange={(event) => setSampleIndex(Number(event.target.value))}>{preflight.samples.map((person, index) => <option key={person.display_name + index} value={index}>{person.display_name}</option>)}</select> : <span>muestra elegible</span>}</div><small className="muted">Variante: {sampleVariant === 'NEUTRAL' ? 'general' : sampleVariant === 'MALE' ? 'hombre' : 'mujer'}</small><ConversationPreview steps={previewSteps} recipient={{ name: sample?.display_name ?? audience }} /></aside></div>}
     <div className="row composer-footer"><button type="button" className="secondary" onClick={() => router.back()}>Cancelar</button><button disabled={saving || steps.some((step) => step.uploading)}>{saving ? 'Preparando…' : 'Preparar campaña'}</button></div>
   </form>
 }
