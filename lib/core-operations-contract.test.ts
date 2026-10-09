@@ -45,6 +45,6 @@ describe('core operations contract', () => {
     expect(migration).toContain("v_status is distinct from 'DRAFT'")
     expect(migration).toContain("campaign_id = p_campaign_id and status = 'QUEUED'")
     expect(migration).toContain("m.status = 'SENDING'")
-    expect(readFileSync(resolve(process.cwd(), 'app/api/messages/route.ts'), 'utf8')).toContain("rpc('enqueue_single_message'")
+    expect(readFileSync(resolve(process.cwd(), 'app/api/messages/route.ts'), 'utf8')).toContain("rpc('enqueue_message_sequence'")
   })
 })

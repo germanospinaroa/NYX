@@ -10,7 +10,21 @@
 
 ## Media
 
-La media se almacenará en storage separado de PostgreSQL, con PostgreSQL como fuente de verdad de sus referencias y estado.
+La media se almacena en Storage privado separado de PostgreSQL. PostgreSQL
+guarda el path estable y el estado; el worker solicita una signed URL justo
+antes del dispatch para evitar que una URL temporal expire mientras espera.
+
+## Message sequences
+
+Una secuencia pertenece a un owner y contacto, y contiene mensajes outbox con
+sequence_index estable. El primer paso es elegible inicialmente; cada paso
+posterior requiere que el anterior termine SENT. FAILED, CANCELLED y
+OUTCOME_UNKNOWN detienen la secuencia sin retry automático. Un mensaje
+individual es una secuencia de un paso. El modelo también permite asociar una
+secuencia a una campaña futura sin cambiar la identidad de campaign_recipient.
+Los snapshots de campaña existentes siguen siendo outbox de un paso; la
+autoría de campañas multi-paso queda deliberadamente pendiente de aplicar y
+verificar esta migración en Supabase.
 
 ## Principios
 

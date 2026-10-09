@@ -25,7 +25,7 @@ Evolution es un proveedor de canal y no el núcleo del dominio.
 
 ## Estado actual
 
-FASE 3B — CORE OPERATIONS RELEASE HARDENING LOCAL; MIGRACIÓN PENDIENTE
+FASE 3B — CONTACTS UX + MESSAGE SEQUENCES LOCAL; MIGRACIÓN PENDIENTE
 
 La aplicación Next.js, el flujo de ingestión, la migración reproducible y las
 pruebas puras están preparados. El proyecto Supabase configurado en
@@ -53,6 +53,13 @@ el límite de confirmación: un snapshot queda READY, `queue_campaign` es la
 única transición explícita a QUEUED, el claim acepta solo campañas QUEUED/RUNNING,
 y el worker reconcilia RUNNING/COMPLETED/FAILED y estados de recipients. Esta
 migration tampoco se ha ejecutado remotamente.
+
+La migración forward-only 20261008170000_message_sequences.sql añade
+secuencias ordenadas, media privada en Storage y gating del outbox: solo el
+primer paso o el sucesor de un paso SENT puede ser reclamado. El compositor
+individual usa una única operación para persistir todos los pasos; el worker
+resuelve media privada mediante signed URL justo antes del envío. Esta
+migración queda pendiente de aplicación remota.
 
 La CLI de Supabase no está disponible en este entorno y no existe
 `supabase/config.toml`; el historial remoto queda pendiente de reconciliación

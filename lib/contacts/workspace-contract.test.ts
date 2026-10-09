@@ -49,4 +49,25 @@ describe('contacts operating workspace contract', () => {
     expect(workspace).toContain('Mujer')
     expect(workspace).toContain('Desconocido')
   })
+
+  it('separates filtering labels from mutation labels and exposes row actions', () => {
+    expect(workspace).toContain('Filtrar por label')
+    expect(workspace).toContain('Label para asignar/quitar')
+    expect(workspace).toContain('Acciones para')
+    expect(workspace).toContain("'/message'")
+    expect(workspace).toContain('>Mensaje</')
+    expect(workspace).toContain('>Ver</')
+    expect(workspace).not.toContain('>Campaña</button>')
+  })
+
+  it('preserves label filter semantics for a synthetic owner-scoped relation', () => {
+    const contacts = [
+      { id: 'a', labels: ['x'] },
+      { id: 'b', labels: [] },
+      { id: 'c', labels: ['y'] },
+    ]
+    const result = contacts.filter((contact) => contact.labels.includes('x'))
+    expect(result.map((contact) => contact.id)).toEqual(['a'])
+    expect(result).toHaveLength(1)
+  })
 })

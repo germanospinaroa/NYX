@@ -11,7 +11,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const { supabase, user } = await requireUser(); const { id } = await params
     const [contactResult, messagesResult] = await Promise.all([
       supabase.from('contacts').select('id, display_name, first_name, phone_e164, gender, gender_reviewed, notes, archived_at, contact_labels(label_id, labels(id, name, color))').eq('owner_id', user.id).eq('id', id).maybeSingle(),
-      supabase.from('messages').select('id, created_at, message_text, media_path, status, channel').eq('owner_id', user.id).eq('contact_id', id).order('created_at', { ascending: false }).limit(50),
+      supabase.from('messages').select('id, created_at, message_text, media_path, message_type, caption, status, channel, sequence_id, sequence_index').eq('owner_id', user.id).eq('contact_id', id).order('created_at', { ascending: false }).limit(100),
     ])
     if (contactResult.error || !contactResult.data) return NextResponse.json({ error: 'CONTACT_NOT_FOUND' }, { status: 404 })
     return NextResponse.json({ contact: contactResult.data, messages: messagesResult.data ?? [] })

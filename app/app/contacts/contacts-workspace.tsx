@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { selectionCount, selectionIncludes, type ContactSelection, type SerializedContactSelection } from '@/lib/contacts/selection'
 
 type Label = { id: string; name: string; color?: string | null }
@@ -33,6 +34,7 @@ export function ContactsWorkspace() {
   const filtersActive = Boolean(query.trim() || gender || labelId || archived !== 'ACTIVE')
   const filterSelection = useMemo(() => ({ mode: 'filter' as const, q: query.trim(), gender, labelId, archived, excludeIds: new Set<string>() }), [archived, gender, labelId, query])
   const selectedCount = selectionCount(selection, total)
+  const singleSelectedId = selectedCount === 1 ? (selection?.mode === 'ids' ? [...selection.ids][0] : contacts.find((contact) => selectionIncludes(selection, contact.id))?.id) : null
   const pageIds = useMemo(() => contacts.map((contact) => contact.id), [contacts])
   const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectionIncludes(selection, id))
   const totalPages = Math.max(Math.ceil(total / PAGE_SIZE), 1)
@@ -182,26 +184,25 @@ export function ContactsWorkspace() {
     {error && <div className="error" role="alert">{error}</div>}
     {message && <div className="success" role="status">{message}</div>}
     <div className="card stack">
-      <div className="contacts-filter-bar">
+      <section className="contacts-toolbar-section contacts-filter-section"><strong>Filtros</strong>
         <input className="contacts-search" placeholder="Buscar por nombre o teléfono" value={query} onChange={(event) => resetFilters({ query: event.target.value, gender, labelId, archived })} />
-        <select value={gender} aria-label="Filtrar por género" onChange={(event) => resetFilters({ query, gender: event.target.value, labelId, archived })}><option value="">Todos</option><option value="MALE">Hombre</option><option value="FEMALE">Mujer</option><option value="UNKNOWN">Desconocido</option></select>
-        <select value={labelId} aria-label="Filtrar por etiqueta" onChange={(event) => resetFilters({ query, gender, labelId: event.target.value, archived })}><option value="">Todas las etiquetas</option>{labels.map((label) => <option key={label.id} value={label.id}>{label.name}</option>)}</select>
+        <select value={gender} aria-label="Filtrar por género" onChange={(event) => resetFilters({ query, gender: event.target.value, labelId, archived })}><option value="">Todos los géneros</option><option value="MALE">Hombre</option><option value="FEMALE">Mujer</option><option value="UNKNOWN">Desconocido</option></select>
+        <select value={labelId} aria-label="Filtrar por label" onChange={(event) => resetFilters({ query, gender, labelId: event.target.value, archived })}><option value="">Filtrar por label</option>{labels.map((label) => <option key={label.id} value={label.id}>{label.name}</option>)}</select>
         <select value={archived} aria-label="Filtrar archivados" onChange={(event) => resetFilters({ query, gender, labelId, archived: event.target.value })}><option value="ACTIVE">Activos</option><option value="ARCHIVED">Archivados</option><option value="ALL">Todos</option></select>
         <button className="secondary" onClick={() => setShowLabelForm((value) => !value)}>{showLabelForm ? 'Cerrar' : 'Nueva etiqueta'}</button>
-      </div>
+      </section>
       {showLabelForm && <form className="label-create-form" onSubmit={(event) => void createLabel(event)}><input placeholder="Nombre de etiqueta" value={newLabelName} onChange={(event) => setNewLabelName(event.target.value)} maxLength={80} required /><input placeholder="Color opcional (#RRGGBB)" value={newLabelColor} onChange={(event) => setNewLabelColor(event.target.value)} maxLength={7} /><button disabled={loading}>Crear etiqueta</button></form>}
-      <div className="contacts-bulk-bar">
+      <section className="contacts-toolbar-section contacts-selection-section">
         <button className="secondary" onClick={togglePage} disabled={!contacts.length || loading}>{allPageSelected ? 'Quitar selección de página' : 'Seleccionar página'}</button>
         {total > contacts.length && selection?.mode !== 'filter' && <button className="secondary" onClick={selectAllFiltered} disabled={loading}>Seleccionar los {total} resultados</button>}
         {selection?.mode === 'filter' && <button className="secondary" onClick={() => setSelection(null)}>Quitar selección total</button>}
-        <span className="selection-count">{selectedCount} seleccionados</span>
-        <select value={bulkLabelId} onChange={(event) => setBulkLabelId(event.target.value)} aria-label="Etiqueta para selección"><option value="">Etiqueta…</option>{labels.map((label) => <option key={label.id} value={label.id}>{label.name}</option>)}</select>
+        {selectedCount === 0 ? <span className="selection-count">Selecciona contactos para ver acciones</span> : <><strong>Acciones para {selectedCount} seleccionados</strong>
+        <select value={bulkLabelId} onChange={(event) => setBulkLabelId(event.target.value)} aria-label="Label para asignar/quitar"><option value="">Label para asignar/quitar</option>{labels.map((label) => <option key={label.id} value={label.id}>{label.name}</option>)}</select>
         <button onClick={() => void labelAction('ADD')} disabled={loading || !selectedCount || !bulkLabelId}>Asignar label</button>
         <button className="secondary" onClick={() => void labelAction('REMOVE')} disabled={loading || !selectedCount || !bulkLabelId}>Quitar label</button>
-        <select defaultValue="" onChange={(event) => void updateGender(event.target.value)} disabled={!selectedCount || loading} aria-label="Cambiar género"><option value="">Cambiar género…</option><option value="MALE">Hombre</option><option value="FEMALE">Mujer</option><option value="UNKNOWN">Desconocido</option></select>
-        {selectedCount === 1 && selection?.mode === 'ids' && <a className="button-link" href={`/app/contacts/${[...selection.ids][0]}/message`}>Enviar mensaje</a>}
-        {selectedCount >= 2 && <button className="secondary" onClick={openCampaign} disabled={loading}>Crear campaña</button>}
-      </div>
+        <select defaultValue="" onChange={(event) => void updateGender(event.target.value)} disabled={loading} aria-label="Cambiar género"><option value="">Cambiar género…</option><option value="MALE">Hombre</option><option value="FEMALE">Mujer</option><option value="UNKNOWN">Desconocido</option></select>
+        {selectedCount === 1 && singleSelectedId && <Link className="button-link" href={'/app/contacts/' + singleSelectedId + '/message'}>Enviar mensaje</Link>}
+        {selectedCount >= 2 && <button className="secondary" onClick={openCampaign} disabled={loading}>Crear campaña</button>}</>}</section>
     </div>
     <div className="contacts-result-heading"><strong>{filtersActive ? `${total} contactos coinciden` : `${total} contactos`}</strong><span>{loading ? 'Actualizando…' : 'Filtros y resultados en servidor'}</span></div>
     <div className="card table-scroll contacts-table-wrap"><table className="contacts-table"><thead><tr><th><input type="checkbox" checked={allPageSelected} onChange={togglePage} aria-label="Seleccionar página" /></th><th>Nombre</th><th>Teléfono</th><th>Género</th><th>Labels</th><th>Acciones</th></tr></thead><tbody>{contacts.map((contact) => <ContactTableRow key={contact.id} contact={contact} labels={labels} selected={selectionIncludes(selection, contact.id)} onToggle={() => toggleContact(contact.id)} onLabelAction={(action, id) => void labelAction(action, id, contact.id)} />)}{contacts.length === 0 && <tr><td colSpan={6}>No hay contactos con estos filtros.</td></tr>}</tbody></table></div>
@@ -220,11 +221,11 @@ function ContactLabels({ contact, labels, onLabelAction }: { contact: Contact; l
 }
 
 function ContactTableRow({ contact, labels, selected, onToggle, onLabelAction }: { contact: Contact; labels: Label[]; selected: boolean; onToggle: () => void; onLabelAction: (action: 'ADD' | 'REMOVE', labelId: string) => void }) {
-  return <tr><td><input type="checkbox" checked={selected} onChange={onToggle} aria-label={`Seleccionar ${contact.display_name}`} /></td><td><strong>{contact.display_name}</strong><small>{contact.first_name}</small></td><td>{contact.phone_e164}</td><td><GenderLabel gender={contact.gender} /></td><td><ContactLabels contact={contact} labels={labels} onLabelAction={onLabelAction} /></td><td><button className="secondary" disabled title="Disponible en una fase futura">Campaña</button></td></tr>
+  return <tr><td><input type="checkbox" checked={selected} onChange={onToggle} aria-label={'Seleccionar ' + contact.display_name} /></td><td><Link href={'/app/contacts/' + contact.id}><strong>{contact.display_name}</strong></Link><small>{contact.first_name}</small></td><td>{contact.phone_e164}</td><td><GenderLabel gender={contact.gender} /></td><td><ContactLabels contact={contact} labels={labels} onLabelAction={onLabelAction} /></td><td><div className="contact-row-actions"><Link className="button-link compact-link" href={'/app/contacts/' + contact.id + '/message'}>Mensaje</Link><Link className="secondary-link compact-link" href={'/app/contacts/' + contact.id}>Ver</Link></div></td></tr>
 }
 
 function ContactCard({ contact, labels, selected, onToggle, onLabelAction }: { contact: Contact; labels: Label[]; selected: boolean; onToggle: () => void; onLabelAction: (action: 'ADD' | 'REMOVE', labelId: string) => void }) {
-  return <article className="contact-card"><div className="contact-card-heading"><label><input type="checkbox" checked={selected} onChange={onToggle} /> Seleccionar</label><GenderLabel gender={contact.gender} /></div><strong>{contact.display_name}</strong><span>{contact.phone_e164}</span><ContactLabels contact={contact} labels={labels} onLabelAction={onLabelAction} /><button className="secondary" disabled>Crear campaña</button></article>
+  return <article className="contact-card"><div className="contact-card-heading"><label><input type="checkbox" checked={selected} onChange={onToggle} /> Seleccionar</label><GenderLabel gender={contact.gender} /></div><Link href={'/app/contacts/' + contact.id}><strong>{contact.display_name}</strong></Link><span>{contact.phone_e164}</span><ContactLabels contact={contact} labels={labels} onLabelAction={onLabelAction} /><div className="contact-row-actions"><Link className="button-link compact-link" href={'/app/contacts/' + contact.id + '/message'}>Mensaje</Link><Link className="secondary-link compact-link" href={'/app/contacts/' + contact.id}>Ver</Link></div></article>
 }
 
 function GenderLabel({ gender }: { gender: string | null }) { return <span className="gender-label">{gender === 'MALE' ? 'Hombre' : gender === 'FEMALE' ? 'Mujer' : 'Desconocido'}</span> }

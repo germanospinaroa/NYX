@@ -76,6 +76,10 @@ thead .sticky-col { z-index: 5; background: #f8fafc; }
 .state-excluido { color: #667085; text-decoration: line-through; }
 .contacts-workspace { width: calc(100vw - 40px); max-width: 1500px; margin-inline: auto; }
 .contacts-filter-bar, .contacts-bulk-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.contacts-toolbar-section { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 0; }
+.contacts-filter-section { border-bottom: 1px solid var(--line); }
+.contacts-filter-section strong, .contacts-selection-section > strong { min-width: max-content; }
+.contacts-selection-section { min-height: 48px; }
 .contacts-search { flex: 1 1 280px; min-width: 220px; }
 .label-create-form { display: flex; gap: 10px; flex-wrap: wrap; padding-top: 4px; }
 .label-create-form input { flex: 1 1 220px; min-width: 0; }
@@ -106,6 +110,21 @@ thead .sticky-col { z-index: 5; background: #f8fafc; }
 .contact-card-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .contact-card > span { color: var(--muted); }
 .contact-card > button { width: max-content; }
+.contact-row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.compact-link { display: inline-block; padding: 6px 9px; border-radius: 7px; text-decoration: none; font-size: 12px; white-space: nowrap; }
+.sequence-composer { max-width: 820px; }
+.sequence-recipient { display: grid; gap: 4px; padding: 12px; border-radius: 9px; background: var(--soft); }
+.sequence-recipient span, .sequence-recipient small, .sequence-upload-status, .sequence-preview-copy { color: var(--muted); }
+.sequence-heading, .sequence-step-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sequence-heading span { color: var(--muted); }
+.sequence-step { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; }
+.sequence-step > label { display: grid; gap: 6px; }
+.sequence-step textarea { font: inherit; border: 1px solid #cfd4dc; border-radius: 7px; padding: 10px; resize: vertical; }
+.compact-button { padding: 6px 9px !important; font-size: 12px; }
+.sequence-image-preview { max-width: 280px; max-height: 220px; object-fit: contain; border-radius: 8px; border: 1px solid var(--line); }
+.message-history-step { display: flex; gap: 10px; padding: 7px 0 7px 16px; border-bottom: 1px solid var(--line); }
+.message-history-step span { color: var(--muted); min-width: 62px; font-size: 13px; }
+.message-history-step p { margin: 0; }
 .form-narrow { max-width: 720px; }
 .form-narrow label { display: grid; gap: 6px; }
 .form-narrow textarea { font: inherit; border: 1px solid #cfd4dc; border-radius: 7px; padding: 10px; resize: vertical; }
@@ -138,4 +157,8 @@ thead .sticky-col { z-index: 5; background: #f8fafc; }
   .review-table-wrap { display: none; }
   .review-mobile-list { display: grid; gap: 12px; }
   .review-card-grid { grid-template-columns: 1fr; }
+  .contacts-toolbar-section { align-items: stretch; }
+  .contacts-toolbar-section > * { flex: 1 1 100%; }
+  .contacts-toolbar-section strong { flex-basis: 100%; }
+  .contact-row-actions .compact-link { flex: 0 0 auto; }
 }
