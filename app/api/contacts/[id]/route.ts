@@ -9,10 +9,9 @@ const updateSchema = z.object({ name: z.string().trim().min(1).max(200), phone: 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { supabase, user } = await requireUser(); const { id } = await params
-    const [contactResult, messagesResult, permissionResult] = await Promise.all([
+    const [contactResult, messagesResult] = await Promise.all([
       supabase.from('contacts').select('id, display_name, first_name, phone_e164, gender, gender_reviewed, notes, archived_at, contact_labels(label_id, labels(id, name, color))').eq('owner_id', user.id).eq('id', id).maybeSingle(),
       supabase.from('messages').select('id, created_at, message_text, media_path, message_type, caption, status, channel, sequence_id, sequence_index').eq('owner_id', user.id).eq('contact_id', id).order('created_at', { ascending: false }).limit(100),
-      supabase.from('contact_channel_permissions').select('status, consent_at, consent_source, opted_out_at').eq('owner_id', user.id).eq('contact_id', id).eq('channel', 'WHATSAPP').maybeSingle(),
     ])
     if (contactResult.error || !contactResult.data) return NextResponse.json({ error: 'CONTACT_NOT_FOUND' }, { status: 404 })
     const messages = await Promise.all((messagesResult.data ?? []).map(async (message) => {
@@ -20,7 +19,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       const signed = await supabase.storage.from('nyx-media').createSignedUrl(message.media_path, 600)
       return { ...message, media_path: undefined, mediaUrl: signed.data?.signedUrl ?? null }
     }))
-    return NextResponse.json({ contact: contactResult.data, permission: permissionResult.data ?? { status: 'UNKNOWN', consent_at: null, consent_source: null, opted_out_at: null }, messages })
+    return NextResponse.json({ contact: contactResult.data, messages })
   } catch (error) {
     const message = error instanceof Error && error.message === 'UNAUTHORIZED' ? error.message : 'CONTACT_LOAD_FAILED'
     return NextResponse.json({ error: message }, { status: message === 'UNAUTHORIZED' ? 401 : 400 })
