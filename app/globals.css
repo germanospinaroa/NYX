@@ -465,3 +465,82 @@ input[type=color] { width: 40px; min-height: 40px; padding: 3px; cursor: pointer
 .campaign-sequence-form .sequence-step-heading { margin-bottom: 14px; }
 @media (max-width: 980px) { .composer-layout { grid-template-columns: 1fr; } .composer-preview { position: static; } }
 @media (max-width: 640px) { .campaign-hero { padding: 20px; } .campaign-detail-heading { display: grid; align-items: start; } .recipient-steps { margin-left: 16px; } .sequence-step { grid-template-columns: 24px minmax(0, 1fr); gap: 8px; } .sequence-step-index { width: 24px; height: 24px; } }
+
+/* UI rescue pass: final cascade for the production shell and conversation composer */
+.app-shell { display: flex; min-height: 100vh; background: var(--nyx-bg); }
+.sidebar { display: flex; position: fixed; inset: 0 auto 0 0; width: 232px; height: 100vh; }
+.app-column { width: calc(100% - 232px); min-width: 0; margin-left: 232px; }
+.app-main { width: 100%; max-width: 1480px; min-height: 100vh; margin: 0 auto; padding: 32px clamp(28px, 3.2vw, 48px) 80px; }
+.message-page { width: 100%; max-width: 1320px; margin: 0 auto; gap: 24px; }
+.message-page-header { display: grid; gap: 7px; max-width: 760px; }
+.message-page-header .back-link { margin-bottom: 8px; }
+.message-page-header h1 { margin: 0; font-size: clamp(28px, 3vw, 36px); }
+.message-page-header p { margin: 0; font-size: 15px; }
+.sequence-composer { width: 100%; max-width: none; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.composer-layout { grid-template-columns: minmax(0, 1.55fr) minmax(340px, .75fr); gap: clamp(28px, 4vw, 56px); }
+.sequence-builder { min-width: 0; }
+.sequence-recipient { display: flex; align-items: center; gap: 11px; padding: 0 0 18px; border-bottom: 1px solid var(--nyx-border); background: transparent; }
+.sequence-recipient > span:last-child { display: grid; gap: 2px; }
+.sequence-recipient strong { font-size: 15px; }
+.sequence-recipient small { font-size: 13px; }
+.sequence-heading { margin: 22px 0 12px; }
+.sequence-heading h2 { font-size: 20px; }
+.sequence-timeline { position: relative; gap: 0; padding-left: 42px; }
+.sequence-timeline::before { position: absolute; top: 20px; bottom: 26px; left: 14px; width: 1px; content: ''; background: var(--nyx-border-strong); }
+.sequence-step { position: relative; display: block; padding: 0 0 18px; border: 0; background: transparent; }
+.sequence-step-index { position: absolute; z-index: 1; top: 14px; left: -42px; width: 29px; height: 29px; border: 4px solid var(--nyx-bg); border-radius: 50%; color: var(--nyx-accent); background: var(--nyx-accent-soft); font-size: 12px; }
+.sequence-step-body { padding: 18px 20px 20px; border: 1px solid var(--nyx-border); border-radius: 14px; background: var(--nyx-surface); box-shadow: 0 8px 24px rgba(24,24,27,.035); }
+.sequence-step-heading { margin: 0 0 18px; }
+.sequence-step-heading strong { font-size: 15px; }
+.sequence-step-heading .row { gap: 3px; }
+.sequence-step-body > label { display: grid; gap: 8px; margin-top: 14px; }
+.sequence-step-body > label:first-of-type { display: inline-grid; grid-template-columns: auto auto; align-items: center; gap: 9px; margin-top: 0; color: var(--nyx-muted); font-size: 12px; font-weight: 550; }
+.sequence-step-body > label:first-of-type select { min-height: 32px; padding: 5px 8px; border-radius: 7px; font-size: 12px; }
+.sequence-step-body textarea { width: 100%; min-height: 132px; resize: vertical; padding: 13px 14px; font-size: 15px; line-height: 1.55; }
+.sequence-step-body label:last-of-type textarea { min-height: 82px; }
+.sequence-add-actions { position: relative; display: flex; gap: 8px; margin: 0 0 0 42px; padding: 8px 0 0; }
+.sequence-add-actions::before { position: absolute; top: -7px; left: -29px; width: 1px; height: 22px; content: ''; background: var(--nyx-border-strong); }
+.sequence-add-actions button { min-height: 42px; border-radius: 9px; }
+.composer-preview { top: 32px; padding: 22px; border: 1px solid var(--nyx-border); border-radius: 16px; background: #efefeb; box-shadow: none; }
+.composer-preview h2 { font-size: 19px; }
+.preview-recipient { margin: 20px 0 14px; padding-bottom: 15px; }
+.preview-sequence { gap: 10px; padding: 10px 2px 4px; }
+.preview-step { display: flex; justify-content: flex-end; gap: 0; }
+.preview-step > span { display: none; }
+.preview-step > div { width: min(100%, 290px); padding: 11px 13px; border: 1px solid #deded8; border-radius: 14px 14px 4px 14px; background: var(--nyx-surface); box-shadow: 0 3px 9px rgba(24,24,27,.04); }
+.preview-step strong { display: none; }
+.preview-step p { margin: 0; color: var(--nyx-ink); font-size: 14px; line-height: 1.5; }
+.preview-step p::first-line { color: var(--nyx-ink); }
+.preview-image { display: block; width: 100%; max-height: 180px; object-fit: cover; margin: -2px -2px 8px; width: calc(100% + 4px); border-radius: 10px; }
+.preview-step:has(p:only-child) { min-height: 42px; }
+.composer-footer { position: sticky; bottom: 16px; z-index: 5; justify-content: flex-end; margin-top: 26px; padding: 12px 0 0; border-top: 1px solid var(--nyx-border); background: linear-gradient(var(--nyx-bg), var(--nyx-bg)); }
+.composer-footer button { min-height: 44px; padding-inline: 20px; }
+.composer-footer button[type='submit'] { min-width: 108px; }
+
+@media (min-width: 861px) {
+  .sidebar { display: flex; }
+  .mobile-topbar, .mobile-nav { display: none !important; }
+  .app-column { margin-left: 232px; width: calc(100% - 232px); }
+}
+@media (max-width: 1100px) and (min-width: 861px) {
+  .app-main { padding-inline: 28px; }
+  .composer-layout { grid-template-columns: minmax(0, 1.35fr) minmax(300px, .75fr); gap: 28px; }
+}
+@media (max-width: 860px) {
+  .sidebar { display: none; }
+  .app-column { width: 100%; margin-left: 0; }
+  .app-main { padding: 24px 16px 92px; }
+  .message-page { gap: 20px; }
+  .composer-layout { grid-template-columns: 1fr; gap: 22px; }
+  .composer-preview { position: static; }
+  .sequence-step-body { padding: 16px; }
+}
+@media (max-width: 520px) {
+  .message-page-header h1 { font-size: 28px; }
+  .sequence-timeline { padding-left: 34px; }
+  .sequence-timeline::before { left: 11px; }
+  .sequence-step-index { left: -34px; width: 25px; height: 25px; }
+  .sequence-step-heading { align-items: flex-start; }
+  .sequence-add-actions { margin-left: 34px; }
+  .sequence-add-actions button { flex: 1; padding-inline: 10px; }
+}
