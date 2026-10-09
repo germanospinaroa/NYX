@@ -8,17 +8,13 @@ import { historyMessageType, historySequenceStatus } from '@/lib/messages/histor
 
 type Contact = { id: string; display_name: string; phone_e164: string; gender: string; notes: string | null; archived_at: string | null; contact_labels?: Array<{ label_id: string; labels?: { name: string; color?: string | null } | Array<{ name: string; color?: string | null }> | null }> }
 type Message = { id: string; created_at: string; message_text: string; message_type?: string | null; caption?: string | null; mediaUrl?: string | null; status: string; sequence_id?: string | null; sequence_index?: number | null }
-type Permission = { status: 'UNKNOWN' | 'OPTED_IN' | 'OPTED_OUT'; consent_source?: string | null }
 
 const genderName = (gender: string) => gender === 'MALE' ? 'Hombre' : gender === 'FEMALE' ? 'Mujer' : 'Desconocido'
-const permissionName = (status: Permission['status']) => status === 'OPTED_IN' ? 'Confirmado' : status === 'OPTED_OUT' ? 'No enviar' : 'Sin confirmar'
 const initials = (name: string) => name.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()
 
 export function ContactDetail({ contactId }: { contactId: string }) {
   const router = useRouter()
   const [contact, setContact] = useState<Contact | null>(null)
-  const [permission, setPermission] = useState<Permission>({ status: 'UNKNOWN' })
-  const [permissionSource, setPermissionSource] = useState('Conversación')
   const [messages, setMessages] = useState<Message[]>([])
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -31,8 +27,6 @@ export function ContactDetail({ contactId }: { contactId: string }) {
       if (!response.ok) setError('Contacto no encontrado.')
       else {
         setContact(body.contact)
-        setPermission(body.permission ?? { status: 'UNKNOWN' })
-        setPermissionSource(body.permission?.consent_source ?? 'Conversación')
         setMessages(body.messages ?? [])
       }
     })
@@ -72,13 +66,6 @@ export function ContactDetail({ contactId }: { contactId: string }) {
     else { setError('No fue posible eliminar el contacto.'); setConfirmDelete(false) }
   }
 
-  async function savePermission(status: Permission['status']) {
-    const source = status === 'OPTED_IN' ? permissionSource : undefined
-    const response = await fetch(`/api/contacts/${contactId}/permission`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status, source }) })
-    if (response.ok) setPermission({ status, consent_source: source ?? null })
-    else setError('No fue posible actualizar el permiso.')
-  }
-
   return <div className="stack contact-detail">
     <Link className="back-link" href="/app/contacts"><Icon name="arrow-left" size={16} />Contactos</Link>
     {error && <div className="inline-alert" role="alert"><Icon name="alert" />{error}</div>}
@@ -86,11 +73,6 @@ export function ContactDetail({ contactId }: { contactId: string }) {
       <div className="avatar avatar-large">{initials(contact.display_name)}</div>
       <div className="profile-identity"><span className="eyebrow">CONTACTO</span><h1>{contact.display_name}</h1><p>{contact.phone_e164} · {genderName(contact.gender)}</p><div className="profile-labels">{(contact.contact_labels ?? []).map((entry) => { const label = Array.isArray(entry.labels) ? entry.labels[0] : entry.labels; return label ? <span className="label-chip" key={entry.label_id}>{label.name}</span> : null })}</div></div>
       <div className="profile-actions"><Link className="button-link" href={`/app/contacts/${contactId}/message`}><Icon name="message" size={16} />Enviar mensaje</Link><button className="secondary" onClick={() => setEditing((value) => !value)}>{editing ? 'Cerrar edición' : 'Editar'}</button><button className="icon-button" aria-label="Más acciones" onClick={() => setConfirmDelete(true)}><Icon name="more" /></button></div>
-    </section>
-    <section className="panel permission-panel" aria-labelledby="permission-title">
-      <div className="section-heading"><div><span className="eyebrow">WHATSAPP</span><h2 id="permission-title">Permiso para campañas</h2></div><span className={`status-badge permission-${permission.status.toLowerCase()}`}>{permissionName(permission.status)}</span></div>
-      <p className="muted">Es una nota de la relación que registras en NYX; no sustituye el consentimiento legal.</p>
-      <div className="permission-controls"><label>Estado<select value={permission.status} onChange={(event) => setPermission({ ...permission, status: event.target.value as Permission['status'] })}><option value="UNKNOWN">Sin confirmar</option><option value="OPTED_IN">Confirmado</option><option value="OPTED_OUT">No enviar</option></select></label>{permission.status === 'OPTED_IN' && <label>Origen<select value={permissionSource} onChange={(event) => setPermissionSource(event.target.value)}><option>Conversación</option><option>Formulario</option><option>Evento / registro</option><option>Cliente</option><option>Otro</option></select></label>}<button type="button" onClick={() => void savePermission(permission.status)}>Guardar permiso</button></div>
     </section>
     {editing && <form className="panel stack detail-edit-form" onSubmit={(event) => void save(event)}><div className="section-heading"><div><span className="eyebrow">EDITAR</span><h2>Datos de la relación</h2></div></div><label>Nombre<input name="name" defaultValue={contact.display_name} /></label><label>Teléfono<input name="phone" defaultValue={contact.phone_e164} /></label><label>Género<select name="gender" defaultValue={contact.gender}><option value="MALE">Hombre</option><option value="FEMALE">Mujer</option><option value="UNKNOWN">Desconocido</option></select></label><label>Nota / contexto<textarea name="notes" defaultValue={contact.notes ?? ''} rows={5} /></label><div className="row"><button disabled={saving}>{saving ? 'Guardando…' : 'Guardar cambios'}</button><button type="button" className="secondary" onClick={() => setEditing(false)}>Cancelar</button></div></form>}
     <div className="detail-grid"><section className="panel context-panel"><div className="section-heading"><div><span className="eyebrow">CONTEXTO</span><h2>Por qué importa</h2></div></div><p>{contact.notes || 'Todavía no hay contexto guardado.'}</p><button className="ghost" onClick={() => setEditing(true)}>Añadir contexto <Icon name="chevron-right" size={15} /></button></section><section className="panel history-panel"><div className="section-heading"><div><span className="eyebrow">ACTIVIDAD</span><h2>Historial de mensajes</h2></div></div>{Object.keys(groupedMessages).length ? Object.values(groupedMessages).map((sequence) => <div className="activity-item" key={sequence[0].sequence_id ?? sequence[0].id}><div className="activity-marker" /><div className="activity-content"><div className="activity-meta"><span>{new Date(sequence[0].created_at).toLocaleString()}</span><strong>{historySequenceStatus(sequence)}</strong></div><p>{sequence.length} {sequence.length === 1 ? 'mensaje' : 'mensajes'} en secuencia</p>{sequence.sort((a, b) => (a.sequence_index ?? 0) - (b.sequence_index ?? 0)).map((message) => <div className="activity-step" key={message.id}><span>{historyMessageType(message.message_type)}</span>{message.message_type === 'AUDIO' ? message.mediaUrl ? <audio controls preload="metadata" src={message.mediaUrl} aria-label="Nota de voz" /> : <p>Audio · nota de voz</p> : <p>{message.message_type === 'IMAGE' ? message.caption || 'Sin caption' : message.message_text}</p>}</div>)}</div></div>) : <div className="empty-inline"><Icon name="message" size={17} /><span>Aún no hay conversaciones registradas.</span></div>}</section></div>
