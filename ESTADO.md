@@ -25,6 +25,19 @@ Evolution es un proveedor de canal y no el núcleo del dominio.
 
 ## Estado actual
 
+REDISEÑO UI/UX V1 LOCAL — VERIFICADO
+
+Se completó el rediseño visual de las superficies actuales sin cambiar
+schema, migrations, APIs, RPCs, RLS, worker, Evolution ni semántica de
+mensajería. NYX ahora usa un shell con sidebar desktop y navegación móvil,
+tokens visuales obsidiana/ivory/ultravioleta, tipografía de sistema, controles
+accesibles, diálogos propios, feedback consistente y estados humanos.
+Contactos, etiquetas, importación, revisión, campañas, detalle de campaña,
+detalle de contacto, compositor de secuencias y login comparten el mismo
+lenguaje visual. El monitor de campañas conserva su polling y los datos
+owner-scoped; `SENT` continúa significando aceptación del dispatch, no
+entrega ni lectura.
+
 FASE 3B — CAMPAIGN LIVE MONITOR V1 LOCAL
 
 La aplicación Next.js, el flujo de ingestión, la migración reproducible y las

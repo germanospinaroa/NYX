@@ -3,52 +3,22 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Icon } from '../../ui'
 
 type Contact = { id: string; display_name: string; phone_e164: string; gender: string; notes: string | null; archived_at: string | null; contact_labels?: Array<{ label_id: string; labels?: { name: string; color?: string | null } | Array<{ name: string; color?: string | null }> | null }> }
-type Message = { id: string; created_at: string; message_text: string; media_path?: string | null; message_type?: string | null; caption?: string | null; status: string; channel: string; sequence_id?: string | null; sequence_index?: number | null }
+type Message = { id: string; created_at: string; message_text: string; message_type?: string | null; caption?: string | null; status: string; sequence_id?: string | null; sequence_index?: number | null }
+const genderName = (gender: string) => gender === 'MALE' ? 'Hombre' : gender === 'FEMALE' ? 'Mujer' : 'Desconocido'
+const initials = (name: string) => name.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()
 
 export function ContactDetail({ contactId }: { contactId: string }) {
-  const router = useRouter()
-  const [contact, setContact] = useState<Contact | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
-  const [editing, setEditing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    void fetch(`/api/contacts/${contactId}`).then(async (response) => {
-      const body = await response.json()
-      if (!response.ok) setError('Contacto no encontrado.')
-      else { setContact(body.contact); setMessages(body.messages ?? []) }
-    })
-  }, [contactId])
-
-  if (error) return <div className="error">{error}</div>
-  if (!contact) return <p>Cargando contacto…</p>
+  const router = useRouter(); const [contact, setContact] = useState<Contact | null>(null); const [messages, setMessages] = useState<Message[]>([]); const [editing, setEditing] = useState(false); const [confirmDelete, setConfirmDelete] = useState(false); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false)
+  useEffect(() => { void fetch(`/api/contacts/${contactId}`, { cache: 'no-store' }).then(async (response) => { const body = await response.json(); if (!response.ok) setError('Contacto no encontrado.'); else { setContact(body.contact); setMessages(body.messages ?? []) } }) }, [contactId])
+  if (error) return <div className="inline-alert" role="alert"><Icon name="alert" />{error}</div>
+  if (!contact) return <div className="detail-skeleton" aria-label="Cargando contacto"><span /><span /><span /></div>
   const currentContact = contact
   const groupedMessages = messages.reduce<Record<string, Message[]>>((groups, message) => { const key = message.sequence_id ?? message.id; (groups[key] ??= []).push(message); return groups }, {})
-
-  async function save(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    setSaving(true)
-    const response = await fetch(`/api/contacts/${contactId}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: form.get('name'), phone: form.get('phone'), gender: form.get('gender'), notes: form.get('notes'), archived: currentContact.archived_at !== null }) })
-    if (!response.ok) setError('No fue posible guardar el contacto.')
-    else { setContact({ ...currentContact, display_name: String(form.get('name')), phone_e164: String(form.get('phone')), gender: String(form.get('gender')), notes: String(form.get('notes') ?? '') }); setEditing(false) }
-    setSaving(false)
-  }
-
-  async function archive() {
-    const response = await fetch(`/api/contacts/${contactId}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: currentContact.display_name, phone: currentContact.phone_e164, gender: currentContact.gender, notes: currentContact.notes, archived: !currentContact.archived_at }) })
-    if (response.ok) setContact({ ...currentContact, archived_at: currentContact.archived_at ? null : new Date().toISOString() })
-  }
-
-  async function remove() {
-    if (!window.confirm('Eliminar definitivamente este contacto? Esta acción no se puede deshacer.')) return
-    const response = await fetch(`/api/contacts/${contactId}`, { method: 'DELETE' })
-    if (response.ok) router.push('/app/contacts')
-    else setError('No fue posible eliminar el contacto.')
-  }
-
-  return <div className="stack"><Link href="/app/contacts">← Contactos</Link><div className="row" style={{ justifyContent: 'space-between' }}><div><h1>{currentContact.display_name}</h1><p>{currentContact.phone_e164} · {currentContact.gender === 'MALE' ? 'Hombre' : currentContact.gender === 'FEMALE' ? 'Mujer' : 'Desconocido'}</p></div><div className="row"><Link className="button-link" href={`/app/contacts/${contactId}/message`}>Enviar mensaje</Link><button className="secondary" onClick={() => setEditing((value) => !value)}>Editar</button><button className="secondary" onClick={() => void archive()}>{currentContact.archived_at ? 'Restaurar' : 'Archivar'}</button><button className="secondary" onClick={() => void remove()}>Eliminar</button></div></div>{editing && <form className="card stack form-narrow" onSubmit={(event) => void save(event)}><label>Nombre<input name="name" defaultValue={currentContact.display_name} /></label><label>Teléfono<input name="phone" defaultValue={currentContact.phone_e164} /></label><label>Género<select name="gender" defaultValue={currentContact.gender}><option value="MALE">Hombre</option><option value="FEMALE">Mujer</option><option value="UNKNOWN">Desconocido</option></select></label><label>Nota / contexto<textarea name="notes" defaultValue={currentContact.notes ?? ''} rows={6} /></label><button disabled={saving}>Guardar</button></form>}<section className="card stack"><h2>Contexto</h2><p>{currentContact.notes || 'Todavía no hay contexto guardado.'}</p><h2>Historial de mensajes</h2>{Object.keys(groupedMessages).length ? Object.values(groupedMessages).map((sequence) => <div className="message-history-sequence" key={sequence[0].sequence_id ?? sequence[0].id}><div className="message-history-row"><span>{new Date(sequence[0].created_at).toLocaleString()}</span><strong>{sequence.every((item) => item.status === 'SENT') ? 'SENT' : sequence[0].status}</strong><p>{sequence.length} {sequence.length === 1 ? 'mensaje' : 'mensajes'}</p></div>{sequence.sort((a, b) => (a.sequence_index ?? 0) - (b.sequence_index ?? 0)).map((message) => <div className="message-history-step" key={message.id}><span>{message.message_type === 'IMAGE' ? 'Imagen' : 'Texto'}</span><p>{message.message_type === 'IMAGE' ? message.caption || 'Sin caption' : message.message_text}</p></div>)}</div>) : <p>No hay mensajes de NYX.</p>}</section></div>
+  async function save(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); setSaving(true); const response = await fetch(`/api/contacts/${contactId}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: form.get('name'), phone: form.get('phone'), gender: form.get('gender'), notes: form.get('notes'), archived: currentContact.archived_at !== null }) }); if (!response.ok) setError('No fue posible guardar el contacto.'); else { setContact({ ...currentContact, display_name: String(form.get('name')), phone_e164: String(form.get('phone')), gender: String(form.get('gender')), notes: String(form.get('notes') ?? '') }); setEditing(false) }; setSaving(false) }
+  async function archive() { const response = await fetch(`/api/contacts/${contactId}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: currentContact.display_name, phone: currentContact.phone_e164, gender: currentContact.gender, notes: currentContact.notes, archived: !currentContact.archived_at }) }); if (response.ok) setContact({ ...currentContact, archived_at: currentContact.archived_at ? null : new Date().toISOString() }) }
+  async function remove() { const response = await fetch(`/api/contacts/${contactId}`, { method: 'DELETE' }); if (response.ok) router.push('/app/contacts'); else { setError('No fue posible eliminar el contacto.'); setConfirmDelete(false) } }
+  return <div className="stack contact-detail"><Link className="back-link" href="/app/contacts"><Icon name="arrow-left" size={16} />Contactos</Link><section className="profile-header panel"><div className="avatar avatar-large">{initials(contact.display_name)}</div><div className="profile-identity"><span className="eyebrow">CONTACTO</span><h1>{contact.display_name}</h1><p>{contact.phone_e164} · {genderName(contact.gender)}</p><div className="profile-labels">{(contact.contact_labels ?? []).map((entry) => { const label = Array.isArray(entry.labels) ? entry.labels[0] : entry.labels; return label ? <span className="label-chip" key={entry.label_id}>{label.name}</span> : null })}</div></div><div className="profile-actions"><Link className="button-link" href={`/app/contacts/${contactId}/message`}><Icon name="message" size={16} />Enviar mensaje</Link><button className="secondary" onClick={() => setEditing((value) => !value)}>{editing ? 'Cerrar edición' : 'Editar'}</button><button className="icon-button" aria-label="Más acciones" onClick={() => setConfirmDelete(true)}><Icon name="more" /></button></div></section>{editing && <form className="panel stack detail-edit-form" onSubmit={(event) => void save(event)}><div className="section-heading"><div><span className="eyebrow">EDITAR</span><h2>Datos de la relación</h2></div></div><label>Nombre<input name="name" defaultValue={contact.display_name} /></label><label>Teléfono<input name="phone" defaultValue={contact.phone_e164} /></label><label>Género<select name="gender" defaultValue={contact.gender}><option value="MALE">Hombre</option><option value="FEMALE">Mujer</option><option value="UNKNOWN">Desconocido</option></select></label><label>Nota / contexto<textarea name="notes" defaultValue={contact.notes ?? ''} rows={5} /></label><div className="row"><button disabled={saving}>{saving ? 'Guardando…' : 'Guardar cambios'}</button><button type="button" className="secondary" onClick={() => setEditing(false)}>Cancelar</button></div></form>}<div className="detail-grid"><section className="panel context-panel"><div className="section-heading"><div><span className="eyebrow">CONTEXTO</span><h2>Por qué importa</h2></div></div><p>{contact.notes || 'Todavía no hay contexto guardado.'}</p><button className="ghost" onClick={() => setEditing(true)}>Añadir contexto <Icon name="chevron-right" size={15} /></button></section><section className="panel history-panel"><div className="section-heading"><div><span className="eyebrow">ACTIVIDAD</span><h2>Historial de mensajes</h2></div></div>{Object.keys(groupedMessages).length ? Object.values(groupedMessages).map((sequence) => <div className="activity-item" key={sequence[0].sequence_id ?? sequence[0].id}><div className="activity-marker" /><div className="activity-content"><div className="activity-meta"><span>{new Date(sequence[0].created_at).toLocaleString()}</span><strong>{sequence.every((item) => item.status === 'SENT') ? 'Enviado' : 'En revisión'}</strong></div><p>{sequence.length} {sequence.length === 1 ? 'mensaje' : 'mensajes'} en secuencia</p>{sequence.sort((a, b) => (a.sequence_index ?? 0) - (b.sequence_index ?? 0)).map((message) => <div className="activity-step" key={message.id}><span>{message.message_type === 'IMAGE' ? 'Imagen' : 'Texto'}</span><p>{message.message_type === 'IMAGE' ? message.caption || 'Sin caption' : message.message_text}</p></div>)}</div></div>) : <div className="empty-inline"><Icon name="message" size={17} /><span>Aún no hay conversaciones registradas.</span></div>}</section></div>{contact.archived_at && <div className="inline-alert"><Icon name="archive" size={16} />Este contacto está archivado.</div>}{confirmDelete && <div className="dialog-backdrop"><div className="dialog" role="dialog" aria-modal="true" aria-labelledby="delete-contact-title"><span className="eyebrow">ACCIÓN DESTRUCTIVA</span><h2 id="delete-contact-title">¿Eliminar este contacto?</h2><p>Se eliminará definitivamente. Para conservar su historial, puedes archivarlo en su lugar.</p><div className="row dialog-actions"><button className="secondary" onClick={() => setConfirmDelete(false)}>Cancelar</button><button className="secondary" onClick={() => { setConfirmDelete(false); void archive() }}>Archivar en su lugar</button><button className="danger" onClick={() => void remove()}>Eliminar</button></div></div></div>}</div>
 }

@@ -21,6 +21,6 @@ export function LoginForm() {
     <div className="field"><label htmlFor="email">Email</label><input id="email" type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
     <div className="field"><label htmlFor="password">Contraseña</label><input id="password" type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
     {error && <div className="error" role="alert">{error}</div>}
-    <button disabled={loading}>{loading ? 'Entrando…' : 'Entrar'}</button>
+    <button className="login-submit" disabled={loading}>{loading ? 'Verificando…' : 'Entrar'}</button>
   </form>
 }
