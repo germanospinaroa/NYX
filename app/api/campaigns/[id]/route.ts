@@ -9,7 +9,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const { supabase, user } = await requireUser()
     const { id } = await params
     if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: 'CAMPAIGN_NOT_FOUND' }, { status: 404 })
-    const { data: campaign, error: campaignError } = await supabase.from('campaigns').select('id, name, status, created_at, started_at, completed_at, scheduled_at, frequency_cap_days').eq('id', id).eq('owner_id', user.id).maybeSingle()
+    const { data: campaign, error: campaignError } = await supabase.from('campaigns').select('id, name, status, created_at, started_at, completed_at, scheduled_at').eq('id', id).eq('owner_id', user.id).maybeSingle()
     if (campaignError || !campaign) return NextResponse.json({ error: 'CAMPAIGN_NOT_FOUND' }, { status: 404 })
     const { data: recipients, error: recipientError } = await supabase.from('campaign_recipients').select('id, status, contact_id, messages(id, sequence_index, message_type, status, attempt_count, last_error_code, created_at, claimed_at, sent_at, sequence_id), contacts(display_name)').eq('campaign_id', id).eq('owner_id', user.id).order('created_at', { ascending: true })
     if (recipientError) return NextResponse.json({ error: 'CAMPAIGN_DETAIL_FAILED' }, { status: 400 })
