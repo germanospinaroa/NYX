@@ -29,7 +29,7 @@ describe('campaign sequence v1 contract', () => {
     expect(migration).toContain('campaign_recipient_id')
     expect(migration).toContain('step.sequence_index')
     expect(migration).toContain('create_campaign_with_snapshot')
-    expect(api).toContain("rpc('create_campaign_with_snapshot'")
+    expect(api).toContain("rpc('create_campaign_with_variants'")
     expect(api).not.toContain("rpc('create_campaign_snapshot'")
     expect(migration).toContain('revoke execute on function public.create_campaign_snapshot(uuid, uuid[]) from authenticated')
   })

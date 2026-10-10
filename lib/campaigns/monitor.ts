@@ -2,7 +2,7 @@ export const TERMINAL_CAMPAIGN_STATUSES = ['COMPLETED', 'FAILED', 'CANCELLED'] a
 export const ACTIVE_CAMPAIGN_STATUSES = ['QUEUED', 'RUNNING', 'PAUSED'] as const
 export const TERMINAL_MESSAGE_STATUSES = ['SENT', 'FAILED', 'OUTCOME_UNKNOWN', 'CANCELLED'] as const
 
-export type CampaignRecipientSummary = { status: string }
+export type CampaignRecipientSummary = { status: string; content_variant_key?: string | null; messages?: CampaignMessageSummary[] }
 export type CampaignMessageSummary = { status: string }
 
 export type CampaignSummaryInput = {
@@ -30,6 +30,7 @@ export type CampaignSummary = CampaignSummaryInput & {
   progressPercent: number
   humanStatus: string
   isPolling: boolean
+  variantSummaries: Array<{ key: string; recipients: number; completed: number; failed: number; unknown: number; pending: number; sentMessages: number }>
 }
 
 export function humanCampaignStatus(status: string, sentRecipients = 0): string {
@@ -66,7 +67,15 @@ export function summarizeCampaign(input: CampaignSummaryInput): CampaignSummary 
   const cancelledRecipients = recipients.filter((item) => item.status === 'CANCELLED').length
   const processedRecipients = sentRecipients + failedRecipients + unknownRecipients + cancelledRecipients
   const processedMessages = messages.filter((item) => TERMINAL_MESSAGE_STATUSES.includes(item.status as typeof TERMINAL_MESSAGE_STATUSES[number])).length
-  return { ...input, totalRecipients: recipients.length, sentRecipients, failedRecipients, unknownRecipients, cancelledRecipients, pendingRecipients: Math.max(0, recipients.length - processedRecipients), processedRecipients, totalMessages: messages.length, processedMessages, progressPercent: recipients.length ? Math.round((processedRecipients / recipients.length) * 100) : 0, humanStatus: humanCampaignStatus(input.status, sentRecipients), isPolling: ACTIVE_CAMPAIGN_STATUSES.includes(input.status as typeof ACTIVE_CAMPAIGN_STATUSES[number]) }
+  const variantKeys = [...new Set(recipients.map((item) => item.content_variant_key || 'A'))]
+  const variantSummaries = variantKeys.map((key) => {
+    const assigned = recipients.filter((item) => (item.content_variant_key || 'A') === key)
+    const completed = assigned.filter((item) => item.status === 'SENT').length
+    const failed = assigned.filter((item) => item.status === 'FAILED').length
+    const unknown = assigned.filter((item) => item.status === 'OUTCOME_UNKNOWN').length
+    return { key, recipients: assigned.length, completed, failed, unknown, pending: assigned.length - completed - failed - unknown - assigned.filter((item) => item.status === 'CANCELLED').length, sentMessages: assigned.reduce((total, item) => total + (item.messages ?? []).filter((message) => message.status === 'SENT').length, 0) }
+  })
+  return { ...input, totalRecipients: recipients.length, sentRecipients, failedRecipients, unknownRecipients, cancelledRecipients, pendingRecipients: Math.max(0, recipients.length - processedRecipients), processedRecipients, totalMessages: messages.length, processedMessages, progressPercent: recipients.length ? Math.round((processedRecipients / recipients.length) * 100) : 0, humanStatus: humanCampaignStatus(input.status, sentRecipients), isPolling: ACTIVE_CAMPAIGN_STATUSES.includes(input.status as typeof ACTIVE_CAMPAIGN_STATUSES[number]), variantSummaries }
 }
 
 export function publicFailureReason(code: string | null | undefined): string | null {
