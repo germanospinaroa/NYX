@@ -12,6 +12,11 @@ describe('campaign personalization', () => {
     expect(findUnsupportedVariables('Hola {{empresa}}')).toEqual(['empresa'])
     expect(resolveCampaignTemplate('Hola {{empresa}}', snapshot).error).toBe('VARIABLE_NO_COMPATIBLE')
   })
+  it('accepts supported image caption variables and rejects unknown ones', () => {
+    expect(resolveCampaignTemplate('Hola {{nombre}}', snapshot).error).toBeUndefined()
+    expect(resolveCampaignTemplate('Hola {{nombre_completo}}', snapshot).error).toBeUndefined()
+    expect(resolveCampaignTemplate('Hola {{variable_inexistente}}', snapshot).error).toBe('VARIABLE_NO_COMPATIBLE')
+  })
   it('uses the display name first token defensively', () => {
     expect(resolveCampaignTemplate('Hola {{nombre}}', { displayNameSnapshot: 'Carlos Rivera' }).value).toBe('Hola Carlos')
     expect(resolveCampaignTemplate('Hola {{nombre}}', {}).error).toBe('MISSING_RECIPIENT_NAME')

@@ -9,6 +9,8 @@ alter table public.campaign_sequence_steps
   add constraint campaign_sequence_steps_content_variant_check
   check (content_variant_key in ('A','B','C','D','E'));
 alter table public.campaign_sequence_steps
+  drop constraint if exists campaign_sequence_steps_variant_unique;
+alter table public.campaign_sequence_steps
   drop constraint if exists campaign_sequence_steps_unique;
 alter table public.campaign_sequence_steps
   add constraint campaign_sequence_steps_variant_unique
@@ -89,15 +91,22 @@ begin
         perform public.resolve_campaign_template(v_step->>'neutralText', 'placeholder', 'placeholder');
         if nullif(v_step->>'maleText', '') is not null then perform public.resolve_campaign_template(v_step->>'maleText', 'placeholder', 'placeholder'); end if;
         if nullif(v_step->>'femaleText', '') is not null then perform public.resolve_campaign_template(v_step->>'femaleText', 'placeholder', 'placeholder'); end if;
-      else
+      elsif v_step->>'type' = 'IMAGE' then
         if nullif(btrim(v_step->>'mediaPath'), '') is null or length(v_step->>'mediaPath') > 500
           or left(btrim(v_step->>'mediaPath'), length(v_owner_id::text) + 1) <> (v_owner_id::text || '/') then
           raise exception 'INVALID_CAMPAIGN_MEDIA' using errcode = '22023';
         end if;
-        if v_step->>'type' = 'AUDIO' and coalesce(v_step->>'mimeType', '') not in ('audio/webm','audio/ogg','audio/mp4','audio/mpeg') then
+      elsif v_step->>'type' = 'AUDIO' then
+        if nullif(btrim(v_step->>'mediaPath'), '') is null or length(v_step->>'mediaPath') > 500
+          or left(btrim(v_step->>'mediaPath'), length(v_owner_id::text) + 1) <> (v_owner_id::text || '/') then
+          raise exception 'INVALID_CAMPAIGN_MEDIA' using errcode = '22023';
+        end if;
+        if coalesce(nullif(btrim(v_step->>'neutralText'), ''), nullif(btrim(v_step->>'maleText'), ''), nullif(btrim(v_step->>'femaleText'), ''), nullif(btrim(v_step->>'neutralCaption'), ''), nullif(btrim(v_step->>'maleCaption'), ''), nullif(btrim(v_step->>'femaleCaption'), '')) is not null then
+          raise exception 'INVALID_AUDIO_CONTENT' using errcode = '22023';
+        end if;
+        if coalesce(v_step->>'mimeType', '') not in ('audio/webm','audio/ogg','audio/mp4','audio/mpeg') then
           raise exception 'INVALID_AUDIO_MIME' using errcode = '22023';
         end if;
-        if v_step::text ~ '\{\{' then raise exception 'VARIABLE_NO_COMPATIBLE' using errcode = '22023'; end if;
       end if;
       if length(coalesce(v_step->>'neutralCaption', '')) > 10000 or length(coalesce(v_step->>'maleCaption', '')) > 10000 or length(coalesce(v_step->>'femaleCaption', '')) > 10000 then
         raise exception 'INVALID_CAMPAIGN_CAPTION' using errcode = '22023';

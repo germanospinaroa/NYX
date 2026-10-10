@@ -122,6 +122,10 @@ Plugin nativo de Codex `ecc@ecc`, versión `2.2.3`, revisión `ef648e01899ba3e8d
   valida secuencias coherentes y asigna recipients de forma determinista y
   balanceada al preparar el snapshot. El worker no cambia: cada recipient
   recibe mensajes finales inmutables de una sola variante de contenido.
+  La corrección de auditoría separa la validación de captions IMAGE de
+  AUDIO, hace reconciliable la constraint de variantes si ya existe fuera
+  del ledger y mantiene los controles de variante bloqueados durante una
+  grabación activa.
 - Diseño detallado de la inbox idempotente de webhooks para Fase 4.
 - Confirmación futura del digest contra el registry antes de infraestructura.
 - Soporte de idempotency key del proveedor: no verificado.
