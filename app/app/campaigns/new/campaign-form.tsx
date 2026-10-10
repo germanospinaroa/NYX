@@ -11,7 +11,7 @@ import { validateAudioFile, validateImageFile } from '@/lib/messages/upload'
 
 type StepType = 'TEXT' | 'IMAGE' | 'AUDIO'
 type Step = { id: string; type: StepType; neutralText: string; maleText: string; femaleText: string; neutralCaption: string; maleCaption: string; femaleCaption: string; mediaPath?: string; mimeType?: string; durationMs?: number; previewUrl?: string; uploading?: boolean }
-type Preflight = { selected: number; recent: number; eligible: number; samples?: Array<{ first_name: string | null; display_name: string; gender: string | null }> }
+type Preflight = { selected: number; eligible: number; samples?: Array<{ first_name: string | null; display_name: string; gender: string | null }> }
 
 const base = (): Step => ({ id: crypto.randomUUID(), type: 'TEXT', neutralText: '', maleText: '', femaleText: '', neutralCaption: '', maleCaption: '', femaleCaption: '' })
 const makeStep = (type: StepType): Step => ({ ...base(), type })
@@ -26,7 +26,6 @@ export function CampaignForm() {
   const router = useRouter()
   const [selection, setSelection] = useState<CampaignSelection | null>(null)
   const [name, setName] = useState('')
-  const [frequencyCapDays, setFrequencyCapDays] = useState(7)
   const [steps, setSteps] = useState<Step[]>([base()])
   const [preflight, setPreflight] = useState<Preflight | null>(null)
   const [preflightLoading, setPreflightLoading] = useState(false)
@@ -51,13 +50,13 @@ export function CampaignForm() {
     let active = true
     setPreflight(null)
     setPreflightLoading(true)
-    void fetch('/api/campaigns/preflight', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection, frequencyCapDays }) }).then(async (response) => {
+    void fetch('/api/campaigns/preflight', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection }) }).then(async (response) => {
       if (!active) return
       if (response.ok) setPreflight(await response.json() as Preflight)
       else setError('No fue posible calcular la audiencia.')
     }).catch(() => { if (active) setError('No fue posible calcular la audiencia.') }).finally(() => { if (active) setPreflightLoading(false) })
     return () => { active = false }
-  }, [frequencyCapDays, selection])
+  }, [selection])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const audience = preflight ? `${preflight.selected} seleccionados` : selection?.mode === 'ids' ? `${selection.contactIds.length} seleccionados` : selection ? 'calculando…' : 'Aún no has elegido destinatarios.'
@@ -98,14 +97,14 @@ export function CampaignForm() {
     if (steps.some((step) => step.type !== 'TEXT' && !step.mediaPath)) { setError('Cada paso multimedia necesita un archivo.'); return }
     setSaving(true)
     try {
-      const response = await fetch('/api/campaigns', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, frequencyCapDays, steps: steps.map(clean), selection }) })
+      const response = await fetch('/api/campaigns', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, steps: steps.map(clean), selection }) })
       const result = await response.json().catch(() => ({})) as { error?: string; campaign?: { campaign_id?: string } }
       if (!response.ok || !result.campaign?.campaign_id) throw new Error(result.error ?? 'CAMPAIGN_CREATE_FAILED')
       window.sessionStorage.removeItem('nyx-campaign-selection')
       router.push(`/app/campaigns/${result.campaign.campaign_id}`)
     } catch (submitError) {
       const code = submitError instanceof Error ? submitError.message : ''
-      setError(code === 'VARIABLE_NO_COMPATIBLE' ? 'Esta variable todavía no está disponible.' : code === 'MISSING_RECIPIENT_NAME' ? 'Falta el nombre de una persona elegible.' : code === 'NO_ELIGIBLE_RECIPIENTS' ? 'No hay personas elegibles por la protección de frecuencia.' : 'No fue posible preparar la campaña.')
+      setError(code === 'VARIABLE_NO_COMPATIBLE' ? 'Esta variable todavía no está disponible.' : code === 'MISSING_RECIPIENT_NAME' ? 'Falta el nombre de una persona elegible.' : code === 'NO_ELIGIBLE_RECIPIENTS' ? 'No hay personas elegibles en esta audiencia.' : 'No fue posible preparar la campaña.')
       setSaving(false)
     }
   }
@@ -121,10 +120,9 @@ export function CampaignForm() {
     {error && <div className="inline-alert" role="alert">{error}</div>}
     {audiencePickerOpen ? <AudiencePicker initialSelection={selection} onConfirm={chooseAudience} onCancel={() => setAudiencePickerOpen(false)} /> : <div className="campaign-composer-layout"><div className="card stack">
       <div className="section-heading"><div><span className="eyebrow">AUDIENCIA</span><h1>Nueva campaña</h1></div><button type="button" className="secondary" onClick={openAudiencePicker}>{selection ? 'Editar audiencia' : 'Seleccionar personas'}</button></div>
-      <section className="audience-summary panel"><strong>Audiencia</strong>{selection ? <><span>{audience}</span>{preflightLoading && <span className="muted">Calculando elegibilidad…</span>}{preflight && <div className="campaign-preflight"><span>{preflight.eligible} elegibles</span><span>{preflight.recent} contactados recientemente</span></div>} {preflight?.eligible === 0 && <div className="inline-alert" role="status">No hay personas elegibles en esta audiencia.</div>}<button type="button" className="ghost" onClick={() => setSelection(null)}>Limpiar audiencia</button></> : <><span>Aún no has elegido destinatarios.</span><button type="button" onClick={openAudiencePicker}>Seleccionar personas</button></>}</section>
+      <section className="audience-summary panel"><strong>Audiencia</strong>{selection ? <><span>{audience}</span>{preflightLoading && <span className="muted">Calculando elegibilidad…</span>}{preflight && <div className="campaign-preflight"><span>{preflight.eligible} elegibles</span></div>} {preflight?.eligible === 0 && <div className="inline-alert" role="status">No hay personas elegibles en esta audiencia.</div>}<button type="button" className="ghost" onClick={() => setSelection(null)}>Limpiar audiencia</button></> : <><span>Aún no has elegido destinatarios.</span><button type="button" onClick={openAudiencePicker}>Seleccionar personas</button></>}</section>
       <label>Nombre de campaña (opcional)<input value={name} onChange={(event) => setName(event.target.value)} /></label>
-      <label>Protección de frecuencia<select value={frequencyCapDays} onChange={(event) => setFrequencyCapDays(Number(event.target.value))}><option value={1}>1 día</option><option value={3}>3 días</option><option value={7}>7 días</option><option value={14}>14 días</option><option value={30}>30 días</option><option value={90}>90 días</option></select></label>
-      {preflight && <div className="campaign-preflight"><strong>Antes de preparar</strong><span>Seleccionados: {preflight.selected}</span><span>Contactados recientemente: {preflight.recent}</span><strong>Elegibles: {preflight.eligible}</strong></div>}
+      {preflight && <div className="campaign-preflight"><strong>Antes de preparar</strong><span>Seleccionados: {preflight.selected}</span><strong>Elegibles: {preflight.eligible}</strong></div>}
       <div className="sequence-heading"><h2>Secuencia de mensajes</h2><span>{steps.length} pasos</span></div>
       {steps.map((step, index) => <article className="sequence-step" key={step.id}><div className="sequence-step-heading"><strong>Paso {index + 1} · {step.type === 'TEXT' ? 'Texto' : step.type === 'IMAGE' ? 'Imagen' : 'Audio'}</strong><div className="row"><button type="button" className="icon-button" aria-label="Mover arriba" onClick={() => move(step.id, -1)} disabled={index === 0}>↑</button><button type="button" className="icon-button" aria-label="Mover abajo" onClick={() => move(step.id, 1)} disabled={index === steps.length - 1}>↓</button><button type="button" className="icon-button" aria-label="Eliminar paso" onClick={() => remove(step.id)} disabled={steps.length === 1}>×</button></div></div>
         <label>Tipo<select value={step.type} onChange={(event) => update(step.id, { ...makeStep(event.target.value as StepType), id: step.id })}><option value="TEXT">Texto</option><option value="IMAGE">Imagen</option><option value="AUDIO">Audio</option></select></label>
