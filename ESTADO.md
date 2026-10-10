@@ -147,6 +147,14 @@ remotamente; la compatibilidad temporal del RPC legacy permanece hasta el
 despliegue de V2. El transporte AUDIO multipart y el historial AUDIO ya están
 verificados en el árbol local.
 
+Reutilización de campañas implementada localmente: el endpoint owner-scoped
+reconstruye una audiencia por `contact_id` y las plantillas desde
+`campaign_sequence_steps`, preservando variantes, orden, captions y metadata
+de audio sin copiar mensajes, estados, asignaciones ni programación. El
+compositor usa esa información como un nuevo borrador editable y mantiene la
+selección de Contacts como fallback cuando no existe `?from=`. No se modificó
+schema ni se ejecutaron operaciones remotas en este milestone.
+
 ## Siguiente fase
 
 Aplicar y verificar `20261008150000_core_operations.sql` mediante el flujo
