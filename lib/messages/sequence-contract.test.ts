@@ -6,6 +6,7 @@ const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/20261
 const route = readFileSync(resolve(process.cwd(), 'app/api/messages/route.ts'), 'utf8')
 const worker = readFileSync(resolve(process.cwd(), 'worker/outbox-worker.ts'), 'utf8')
 const composer = readFileSync(resolve(process.cwd(), 'app/app/contacts/[id]/message/message-composer.tsx'), 'utf8')
+const campaignComposer = readFileSync(resolve(process.cwd(), 'app/app/campaigns/new/campaign-form.tsx'), 'utf8')
 
 describe('message sequence contract', () => {
   it('persists ordered steps in one transaction and keeps media private', () => {
@@ -29,5 +30,12 @@ describe('message sequence contract', () => {
     expect(composer).not.toContain('URL HTTPS de Storage')
     expect(composer).not.toContain('outbox')
     expect(composer).not.toContain('worker')
+  })
+  it('keeps campaign audio recording on the shared recorder path', () => {
+    expect(campaignComposer).toContain("useAudioRecorder")
+    expect(campaignComposer).toContain("'Grabar audio'")
+    expect(campaignComposer).toContain("'Detener'")
+    expect(campaignComposer).toContain('Boolean(audioRecorder.activeStepId)')
+    expect(campaignComposer).toContain("upload(id, file, 'AUDIO')")
   })
 })
