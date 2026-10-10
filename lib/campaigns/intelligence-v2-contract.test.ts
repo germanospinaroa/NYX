@@ -3,19 +3,20 @@ import { readFileSync } from 'node:fs'
 
 const migration = readFileSync('supabase/migrations/20261009215909_campaign_intelligence_v2.sql', 'utf8')
 const permissionRemoval = readFileSync('supabase/migrations/20261009232541_remove_campaign_permission_gating.sql', 'utf8')
+const frequencyRemoval = readFileSync('supabase/migrations/20261010020406_remove_campaign_frequency_gating.sql', 'utf8')
 const preflight = readFileSync('app/api/campaigns/preflight/route.ts', 'utf8')
 const contactsRoute = readFileSync('app/api/contacts/route.ts', 'utf8')
 
 describe('campaign intelligence v2 migration contract', () => {
-  it('keeps frequency protection while removing permission gating non-destructively', () => {
+  it('removes permission and frequency gating non-destructively', () => {
     expect(migration).toContain("status in ('DRAFT','READY','SCHEDULED'")
-    expect(migration).toContain('frequency_cap_days')
     expect(migration).toContain('first_name_snapshot')
     expect(migration).toContain('display_name_snapshot')
-    expect(permissionRemoval).toContain('make_interval(days => p_frequency_cap_days)')
     expect(permissionRemoval).not.toContain("permission.status = 'OPTED_IN'")
     expect(permissionRemoval).not.toContain('join public.contact_channel_permissions')
-    expect(permissionRemoval).not.toContain('drop table')
+    expect(frequencyRemoval).not.toContain('make_interval(days => p_frequency_cap_days)')
+    expect(frequencyRemoval).not.toContain('recently_contacted')
+    expect(frequencyRemoval).not.toContain('drop table')
   })
   it('keeps scheduled work behind available_at and explicit transitions', () => {
     expect(migration).toContain('create or replace function public.schedule_campaign')
