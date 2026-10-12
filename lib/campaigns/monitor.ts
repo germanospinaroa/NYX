@@ -53,6 +53,12 @@ export function humanMessageType(type: string): string {
   return type === 'IMAGE' ? 'Imagen' : type === 'AUDIO' ? 'Audio' : 'Texto'
 }
 
+export function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return 'C'
+  return `${parts[0][0]}${parts.length > 1 ? parts[parts.length - 1][0] : ''}`.toUpperCase().slice(0, 2)
+}
+
 export function humanRecipientStatus(status: string, hasSentSteps = false): string {
   if (status === 'QUEUED' && hasSentSteps) return 'En proceso'
   return ({ QUEUED: 'Pendiente', SENT: 'Completado', FAILED: 'No se pudo completar', OUTCOME_UNKNOWN: 'Requiere revisión', CANCELLED: 'Cancelado' } as Record<string, string>)[status] ?? 'Pendiente'

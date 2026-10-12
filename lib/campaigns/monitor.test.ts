@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { humanCampaignStatus, humanMessageStatus, humanMessageType, humanRecipientStatus, summarizeCampaign } from './monitor'
+import { humanCampaignStatus, humanMessageStatus, humanMessageType, humanRecipientStatus, initials, summarizeCampaign } from './monitor'
 
 const list = readFileSync(resolve(process.cwd(), 'app/app/campaigns/campaign-list.tsx'), 'utf8')
 const detail = readFileSync(resolve(process.cwd(), 'app/app/campaigns/[id]/campaign-detail.tsx'), 'utf8')
@@ -27,6 +27,15 @@ describe('campaign live monitor', () => {
     expect(humanMessageType('AUDIO')).toBe('Audio')
   })
 
+  it('builds initials from the first and last name tokens', () => {
+    expect(initials('María Fernanda Gómez')).toBe('MG')
+    expect(initials('Juan Carlos Pérez López')).toBe('JL')
+    expect(initials('Carlos Rivera')).toBe('CR')
+    expect(initials('Andrea')).toBe('A')
+    expect(initials('Contacto')).toBe('C')
+    expect(initials('   ')).toBe('C')
+  })
+
   it('defines polling, focus/visibility refresh and overlap protection', () => {
     expect(list).toContain('setInterval')
     expect(list).toContain('2000')
@@ -41,6 +50,10 @@ describe('campaign live monitor', () => {
   it('keeps detail owner-scoped and excludes provider/media internals', () => {
     expect(api).toContain("eq('id', id).eq('owner_id', user.id)")
     expect(api).toContain("eq('campaign_id', id).eq('owner_id', user.id)")
+    expect(api).toContain('first_name_snapshot, display_name_snapshot, phone_snapshot')
+    expect(api).toContain('contactName: recipient.display_name_snapshot')
+    expect(api).toContain('contactPhone: recipient.phone_snapshot')
+    expect(api).toContain('contacts(display_name, phone_e164)')
     expect(api).not.toContain('provider_message_id')
     expect(api).not.toContain('media_path')
     expect(api).not.toContain('raw provider')
@@ -51,5 +64,12 @@ describe('campaign live monitor', () => {
     expect(detail).toContain('failureReason')
     expect(detail).not.toContain('provider_message_id')
     expect(detail).not.toContain('media_path')
+  })
+
+  it('renders recipient phone only inside expanded details', () => {
+    expect(detail).toContain('contactPhone: string | null')
+    expect(detail).toContain('Teléfono no disponible')
+    expect(detail).toContain('recipient.contactPhone')
+    expect(detail).toContain('initials(recipient.contactName)')
   })
 })

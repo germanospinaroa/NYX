@@ -11,17 +11,19 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: 'CAMPAIGN_NOT_FOUND' }, { status: 404 })
     const { data: campaign, error: campaignError } = await supabase.from('campaigns').select('id, name, status, created_at, started_at, completed_at, scheduled_at').eq('id', id).eq('owner_id', user.id).maybeSingle()
     if (campaignError || !campaign) return NextResponse.json({ error: 'CAMPAIGN_NOT_FOUND' }, { status: 404 })
-    const { data: recipients, error: recipientError } = await supabase.from('campaign_recipients').select('id, status, contact_id, content_variant_key, messages(id, sequence_index, message_type, status, attempt_count, last_error_code, created_at, claimed_at, sent_at, sequence_id), contacts(display_name)').eq('campaign_id', id).eq('owner_id', user.id).order('created_at', { ascending: true })
+    const { data: recipients, error: recipientError } = await supabase.from('campaign_recipients').select('id, status, contact_id, content_variant_key, first_name_snapshot, display_name_snapshot, phone_snapshot, messages(id, sequence_index, message_type, status, attempt_count, last_error_code, created_at, claimed_at, sent_at, sequence_id), contacts(display_name, phone_e164)').eq('campaign_id', id).eq('owner_id', user.id).order('created_at', { ascending: true })
     if (recipientError) return NextResponse.json({ error: 'CAMPAIGN_DETAIL_FAILED' }, { status: 400 })
     const { data: stepRows, error: stepsError } = await supabase.from('campaign_sequence_steps').select('sequence_index, content_variant_key').eq('campaign_id', id).eq('owner_id', user.id)
     if (stepsError) return NextResponse.json({ error: 'CAMPAIGN_DETAIL_FAILED' }, { status: 400 })
     const safeRecipients = (recipients ?? []).map((recipient) => {
       const messages = [...(recipient.messages ?? [])].sort((a, b) => (a.sequence_index ?? 0) - (b.sequence_index ?? 0))
+      const liveContact = Array.isArray(recipient.contacts) ? recipient.contacts[0] : recipient.contacts
       return {
         id: recipient.id,
         contactId: recipient.contact_id,
         contentVariantKey: recipient.content_variant_key ?? 'A',
-        contactName: recipient.contacts?.[0]?.display_name ?? 'Contacto',
+        contactName: recipient.display_name_snapshot ?? liveContact?.display_name ?? recipient.first_name_snapshot ?? 'Contacto',
+        contactPhone: recipient.phone_snapshot ?? liveContact?.phone_e164 ?? null,
         status: recipient.status,
         steps: messages.map((message, index) => ({
           index: message.sequence_index ?? index,
