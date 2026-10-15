@@ -17,7 +17,7 @@ returns setof uuid language sql stable security invoker set search_path = public
       or (p_permission in ('OPTED_IN','OPTED_OUT') and exists (select 1 from public.contact_channel_permissions cp where cp.owner_id = c.owner_id and cp.contact_id = c.id and cp.channel = 'WHATSAPP' and cp.status = p_permission))
       or (p_permission = 'UNKNOWN' and not exists (select 1 from public.contact_channel_permissions cp where cp.owner_id = c.owner_id and cp.contact_id = c.id and cp.channel = 'WHATSAPP' and cp.status in ('OPTED_IN','OPTED_OUT'))))
     and not (c.id = any(coalesce(p_exclude_ids, '{}')))
-  order by lower(translate(btrim(coalesce(c.display_name, '')), 'áàäâéèëêíìïîóòöôúùüûñ', 'aaaaeeeeiiiioooouuuun')) asc, c.id asc;
+  order by translate(lower(btrim(coalesce(c.display_name, ''))), 'áàäâéèëêíìïîóòöôúùüû', 'aaaaeeeeiiiioooouuuu') collate "es-x-icu" asc, c.id asc;
 $$;
 
 create or replace function public.get_contacts_workspace(
@@ -35,7 +35,7 @@ returns jsonb language sql stable security invoker set search_path = public, pg_
   ), page_rows as (
     select id, display_name, first_name, phone_e164, gender, gender_reviewed, created_at, contact_labels
     from filtered
-    order by lower(translate(btrim(coalesce(display_name, '')), 'áàäâéèëêíìïîóòöôúùüûñ', 'aaaaeeeeiiiioooouuuun')) asc, id asc
+    order by translate(lower(btrim(coalesce(display_name, ''))), 'áàäâéèëêíìïîóòöôúùüû', 'aaaaeeeeiiiioooouuuu') collate "es-x-icu" asc, id asc
     offset greatest(p_page, 0) * least(greatest(p_page_size, 1), 100)
     limit least(greatest(p_page_size, 1), 100)
   )
@@ -47,20 +47,17 @@ returns jsonb language plpgsql stable security invoker set search_path = public,
 declare v_result jsonb;
 begin
   if (select auth.uid()) is null then raise exception 'AUTHENTICATION_REQUIRED' using errcode = '28000'; end if;
-  if p_frequency_cap_days is null or p_frequency_cap_days not between 1 and 90 then raise exception 'INVALID_FREQUENCY_CAP' using errcode = '22023'; end if;
   with selected as (
-    select distinct c.id, c.first_name, c.display_name, c.gender,
-      exists (select 1 from public.messages m where m.owner_id = c.owner_id and m.contact_id = c.id and m.campaign_id is not null and m.status = 'SENT' and m.sent_at >= now() - make_interval(days => p_frequency_cap_days)) as recently_contacted
+    select distinct c.id, c.first_name, c.display_name, c.gender
     from public.contacts c
     where c.owner_id = (select auth.uid()) and c.id = any(p_contact_ids) and c.archived_at is null
   ), eligible as (
-    select * from selected where not recently_contacted
+    select * from selected
   )
   select jsonb_build_object(
     'selected', (select count(*) from selected),
-    'recent', (select count(*) from selected where recently_contacted),
     'eligible', (select count(*) from eligible),
-    'samples', coalesce((select jsonb_agg(jsonb_build_object('id', id, 'first_name', first_name, 'display_name', display_name, 'gender', gender)) from (select * from eligible order by lower(translate(btrim(coalesce(display_name, '')), 'áàäâéèëêíìïîóòöôúùüûñ', 'aaaaeeeeiiiioooouuuun')) asc, id asc limit 5) sample), '[]'::jsonb)
+    'samples', coalesce((select jsonb_agg(jsonb_build_object('id', id, 'first_name', first_name, 'display_name', display_name, 'gender', gender)) from (select * from eligible order by translate(lower(btrim(coalesce(display_name, ''))), 'áàäâéèëêíìïîóòöôúùüû', 'aaaaeeeeiiiioooouuuu') collate "es-x-icu" asc, id asc limit 5) sample), '[]'::jsonb)
   ) into v_result;
   return v_result;
 end;
@@ -103,7 +100,7 @@ begin
       select id, row_number, raw_name, raw_phone, normalized_name, phone_e164, result,
              error_code, gender_suggestion, gender_confidence, gender_final,
              gender_review_status, included, row_is_ready,
-             lower(translate(btrim(coalesce(nullif(normalized_name, ''), nullif(raw_name, ''), '')), 'áàäâéèëêíìïîóòöôúùüûñ', 'aaaaeeeeiiiioooouuuun')) as sort_key
+             translate(lower(btrim(coalesce(nullif(normalized_name, ''), nullif(raw_name, ''), ''))), 'áàäâéèëêíìïîóòöôúùüû', 'aaaaeeeeiiiioooouuuu') collate "es-x-icu" as sort_key
         from public.contact_import_rows
        where import_id = p_import_id and owner_id = v_owner_id
          and (p_query = '' or lower(coalesce(raw_name, '') || ' ' || coalesce(normalized_name, '') || ' ' || coalesce(raw_phone, '') || ' ' || coalesce(phone_e164, '')) like v_query)

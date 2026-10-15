@@ -170,3 +170,6 @@ forward-only `20261015120000_alphabetical_people_order.sql`. Reemplaza
 server-side y desempate estable. El monitor de campañas ordena destinatarios
 después de reconstruir su identidad desde snapshots. No se aplicó la
 migration, no se modificó producción y no se tocaron worker ni Evolution.
+La corrección posterior conserva el preflight actual sin gating de frecuencia
+ni permisos, y usa `lower` antes de `translate` con la collation española ICU,
+preservando `Ñ`.

@@ -30,6 +30,7 @@ describe('people alphabetical ordering', () => {
     expect(compareNames('Juan Carlos Pérez', 'Juan Diego Vargas')).toBeLessThan(0)
     expect(compareNames('Monica Gonzalez', 'Sandra Milena Peña')).toBeLessThan(0)
     expect(compareNames('María', 'Maria')).toBe(0)
+    expect(['Nora', 'Ñora', 'Oscar', 'Óscar'].sort(compareNames)).toEqual(['Nora', 'Ñora', 'Oscar', 'Óscar'])
   })
 
   it('produces globally sorted pagination slices rather than page-local sorting', () => {
