@@ -161,3 +161,12 @@ Aplicar y verificar `20261008150000_core_operations.sql` mediante el flujo
 oficial de migraciones, después de reconciliar el historial remoto. Luego
 seguir con QA controlado de campañas y worker; no enviar mensajes reales sin
 autorización explícita.
+
+En `alphabetical-people-order-staging` quedó preparada la migration
+forward-only `20261015120000_alphabetical_people_order.sql`. Reemplaza
+únicamente el orden de `get_contacts_workspace`,
+`resolve_contact_ids_for_selection`, `preflight_campaign_audience` y
+`get_contact_import_review` por nombre visible normalizado, con paginación
+server-side y desempate estable. El monitor de campañas ordena destinatarios
+después de reconstruir su identidad desde snapshots. No se aplicó la
+migration, no se modificó producción y no se tocaron worker ni Evolution.

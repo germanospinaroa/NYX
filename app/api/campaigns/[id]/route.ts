@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireUser } from '@/lib/supabase/user'
 import { isSameOrigin } from '@/lib/security/request'
 import { publicFailureReason } from '@/lib/campaigns/monitor'
+import { comparePeopleByName } from '@/lib/contacts/sort'
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -38,6 +39,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         })),
       }
     })
+    safeRecipients.sort((left, right) => comparePeopleByName({ id: left.contactId, display_name: left.contactName }, { id: right.contactId, display_name: right.contactName }))
     const allMessages = safeRecipients.flatMap((recipient) => recipient.steps)
     const sentRecipients = safeRecipients.filter((recipient) => recipient.status === 'SENT').length
     const terminalMessages = allMessages.filter((message) => ['SENT', 'FAILED', 'OUTCOME_UNKNOWN', 'CANCELLED'].includes(message.status)).length
