@@ -19,6 +19,12 @@ describe('worker execution modes', () => {
     expect(worker).toContain('processOutboxOnce')
   })
 
+  it('records a heartbeat only from the persistent worker with a safe identifier', () => {
+    expect(worker).toContain('recordWorkerHeartbeat')
+    expect(worker).toContain('WORKER_HEARTBEAT_FAILED')
+    expect(worker).toContain('NYX_WORKER_ID')
+  })
+
   it('does not put a mock adapter on the production entrypoint', () => {
     expect(runOnce).not.toContain('MockEvolutionAdapter')
     expect(runOnce).not.toContain('claim_outbox_batch')

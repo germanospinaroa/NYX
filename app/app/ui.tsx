@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export type IconName = 'users' | 'send' | 'tags' | 'upload' | 'log-out' | 'plus' | 'search' | 'chevron-right' | 'chevron-down' | 'arrow-left' | 'arrow-up' | 'arrow-down' | 'trash' | 'archive' | 'message' | 'more' | 'filter' | 'check' | 'clock' | 'alert' | 'pause' | 'play' | 'x'
 
@@ -55,21 +55,68 @@ function NavLinks({ mobile = false }: { mobile?: boolean }) {
   })}</nav>
 }
 
-function WhatsAppConnectionIndicator() {
-  const [state, setState] = useState<'CONNECTED' | 'DISCONNECTED' | 'UNKNOWN' | 'VERIFYING'>('VERIFYING')
-  useEffect(() => {
-    let active = true
-    const check = () => { if (active) setState('VERIFYING'); void fetch('/api/evolution/status', { cache: 'no-store' }).then((response) => response.json()).then((body: { state?: 'CONNECTED' | 'DISCONNECTED' | 'UNKNOWN' }) => { if (active) setState(body.state ?? 'UNKNOWN') }).catch(() => { if (active) setState('UNKNOWN') }) }
-    check()
-    const interval = window.setInterval(check, 15000)
-    return () => { active = false; window.clearInterval(interval) }
+export type OperationalStatus = {
+  state: 'CONNECTED' | 'DISCONNECTED' | 'CONNECTING' | 'ERROR' | 'UNKNOWN' | 'VERIFYING'
+  instance: string | null
+  linkedNumber: string | null
+  checkedAt: string | null
+  worker: { state: 'RUNNING' | 'STALE' | 'UNKNOWN'; lastSeenAt: string | null; workerCount: number }
+  canProcess: boolean
+}
+
+const initialOperationalStatus: OperationalStatus = {
+  state: 'VERIFYING', instance: null, linkedNumber: null, checkedAt: null,
+  worker: { state: 'UNKNOWN', lastSeenAt: null, workerCount: 0 }, canProcess: false,
+}
+
+export function useOperationalStatus() {
+  const [status, setStatus] = useState<OperationalStatus>(initialOperationalStatus)
+  const [refreshing, setRefreshing] = useState(false)
+  const refresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      const response = await fetch('/api/evolution/status', { cache: 'no-store' })
+      const body = await response.json().catch(() => ({})) as Partial<OperationalStatus>
+      if (!response.ok) throw new Error('STATUS_UNAVAILABLE')
+      setStatus({ ...initialOperationalStatus, ...body, worker: { ...initialOperationalStatus.worker, ...(body.worker ?? {}) }, state: body.state ?? 'ERROR', canProcess: body.canProcess === true })
+    } catch {
+      setStatus((current) => ({ ...current, state: 'ERROR', canProcess: false }))
+    } finally { setRefreshing(false) }
   }, [])
-  const label = state === 'CONNECTED' ? 'WhatsApp conectado' : state === 'DISCONNECTED' ? 'WhatsApp desconectado' : state === 'VERIFYING' ? 'WhatsApp verificando' : 'WhatsApp estado desconocido'
-  return <span className={`connection-indicator connection-${state.toLowerCase()}`} title={label}><span className="connection-dot" aria-hidden="true" />{label}</span>
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    void refresh()
+    const interval = window.setInterval(() => void refresh(), 15000)
+    return () => window.clearInterval(interval)
+  }, [refresh])
+  /* eslint-enable react-hooks/set-state-in-effect */
+  return { ...status, refresh, refreshing }
+}
+
+function operationalConnectionLabel(state: OperationalStatus['state']) {
+  return ({ CONNECTED: 'Conectado', DISCONNECTED: 'Desconectado', CONNECTING: 'Conectando', ERROR: 'Error de comunicación', UNKNOWN: 'No verificado', VERIFYING: 'Verificando' } as Record<OperationalStatus['state'], string>)[state]
+}
+
+function workerLabel(state: OperationalStatus['worker']['state']) {
+  return ({ RUNNING: 'Worker activo', STALE: 'Worker sin heartbeat reciente', UNKNOWN: 'Worker no verificado' } as Record<OperationalStatus['worker']['state'], string>)[state]
+}
+
+export function OperationalStatus({ compact = false }: { compact?: boolean }) {
+  const status = useOperationalStatus()
+  const connectionClass = status.state.toLowerCase()
+  const updated = status.checkedAt ? new Date(status.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'
+  return <section className={`operational-status ${compact ? 'operational-status-compact' : ''}`} aria-label="Estado operativo">
+    <div className="operational-status-main">
+      <span className={`connection-dot connection-${connectionClass}`} aria-hidden="true" />
+      <div><strong>WhatsApp {operationalConnectionLabel(status.state)}</strong><small>{status.instance ? `Instancia ${status.instance}` : 'Instancia no configurada'}{status.linkedNumber ? ` · ${status.linkedNumber}` : ''}</small></div>
+      <button className="icon-button status-refresh" onClick={() => void status.refresh()} disabled={status.refreshing} aria-label="Actualizar estado operativo" title="Actualizar estado operativo">↻</button>
+    </div>
+    {!compact && <div className="operational-status-details"><span>{workerLabel(status.worker.state)}{status.worker.workerCount > 1 ? ` · ${status.worker.workerCount} instancias` : ''}</span><span className={status.canProcess ? 'operational-ready' : 'operational-blocked'}>{status.canProcess ? 'Listo para procesar' : 'Envíos bloqueados hasta verificar conexión y worker'}</span><small>Actualizado {updated}</small></div>}
+  </section>
 }
 
 export function AppShell({ children, logout }: { children: React.ReactNode; logout: React.ReactNode }) {
   const pathname = usePathname()
   const pageTitle = pathname.startsWith('/app/campaigns') ? 'Campañas' : pathname.startsWith('/app/labels') ? 'Etiquetas' : pathname.startsWith('/app/imports') ? 'Importar' : 'Contactos'
-  return <div className="app-shell"><aside className="sidebar"><Link className="brand" href="/app/contacts"><span className="brand-mark">N</span><span><strong>NYX</strong><small>Relationship Intelligence</small></span></Link><NavLinks /><div className="sidebar-footer"><WhatsAppConnectionIndicator /><div className="sidebar-rule" />{logout}</div></aside><div className="app-column"><header className="mobile-topbar"><Link className="brand brand-mobile" href="/app/contacts"><span className="brand-mark">N</span><strong>NYX</strong></Link><span className="mobile-page-title">{pageTitle}</span><WhatsAppConnectionIndicator />{logout}</header><main className="app-main">{children}</main><div className="mobile-nav"><NavLinks mobile /></div></div></div>
+  return <div className="app-shell"><aside className="sidebar"><Link className="brand" href="/app/contacts"><span className="brand-mark">N</span><span><strong>NYX</strong><small>Relationship Intelligence</small></span></Link><NavLinks /><div className="sidebar-footer"><div className="sidebar-rule" />{logout}</div></aside><div className="app-column"><header className="mobile-topbar"><Link className="brand brand-mobile" href="/app/contacts"><span className="brand-mark">N</span><strong>NYX</strong></Link><span className="mobile-page-title">{pageTitle}</span>{logout}</header><header className="global-ops-header"><OperationalStatus /> </header><main className="app-main">{children}</main><div className="mobile-nav"><NavLinks mobile /></div></div></div>
 }

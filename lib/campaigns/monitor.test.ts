@@ -14,6 +14,8 @@ describe('campaign live monitor', () => {
     expect(summary.failedRecipients).toBe(1)
     expect(summary.processedRecipients).toBe(2)
     expect(summary.pendingRecipients).toBe(0)
+    expect(summary.unknownMessages).toBe(0)
+    expect(summary.pendingMessages).toBe(0)
     expect(summary.progressPercent).toBe(100)
     expect(summary.humanStatus).toBe('Finalizada con incidencias')
   })

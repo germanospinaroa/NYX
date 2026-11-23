@@ -29,6 +29,8 @@ export type CampaignSummary = CampaignSummaryInput & {
   processedRecipients: number
   totalMessages: number
   processedMessages: number
+  unknownMessages: number
+  pendingMessages: number
   progressPercent: number
   humanStatus: string
   isPolling: boolean
@@ -99,7 +101,8 @@ export function summarizeCampaign(input: CampaignSummaryInput): CampaignSummary 
     const unknown = assigned.filter((item) => item.status === 'OUTCOME_UNKNOWN').length
     return { key, recipients: assigned.length, completed, failed, unknown, pending: assigned.length - completed - failed - unknown - assigned.filter((item) => item.status === 'CANCELLED').length, sentMessages: assigned.reduce((total, item) => total + (item.messages ?? []).filter((message) => message.status === 'SENT').length, 0) }
   })
-  return { ...input, totalRecipients: recipients.length, sentRecipients, failedRecipients, unknownRecipients, cancelledRecipients, pendingRecipients: Math.max(0, recipients.length - processedRecipients), processedRecipients, totalMessages: messages.length, processedMessages, progressPercent: recipients.length ? Math.round((processedRecipients / recipients.length) * 100) : 0, humanStatus: humanCampaignStatus(input.status, sentRecipients), isPolling: ACTIVE_CAMPAIGN_STATUSES.includes(input.status as typeof ACTIVE_CAMPAIGN_STATUSES[number]), variantSummaries }
+  const unknownMessages = messages.filter((item) => item.status === 'OUTCOME_UNKNOWN').length
+  return { ...input, totalRecipients: recipients.length, sentRecipients, failedRecipients, unknownRecipients, cancelledRecipients, pendingRecipients: Math.max(0, recipients.length - processedRecipients), processedRecipients, totalMessages: messages.length, processedMessages, unknownMessages, pendingMessages: messages.length - processedMessages, progressPercent: recipients.length ? Math.round((processedRecipients / recipients.length) * 100) : 0, humanStatus: humanCampaignStatus(input.status, sentRecipients), isPolling: ACTIVE_CAMPAIGN_STATUSES.includes(input.status as typeof ACTIVE_CAMPAIGN_STATUSES[number]), variantSummaries }
 }
 
 export function publicFailureReason(code: string | null | undefined): string | null {

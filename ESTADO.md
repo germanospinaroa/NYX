@@ -207,3 +207,18 @@ Su registro remoto es `20261123214634`; no debe volver a ejecutarse ni
 registrarse como una migration independiente. La columna `pause_requested` y
 las RPC de edición, claim, pausa, reanudación, cancelación y liberación fueron
 verificadas después de la aplicación.
+
+### Visibilidad operativa NYX
+
+Se añadió localmente un snapshot autenticado de Evolution con estado explícito
+`CONNECTED`, `DISCONNECTED`, `CONNECTING` o `ERROR`, instancia, número
+enmascarado y hora de comprobación. El encabezado privado ofrece polling y
+actualización manual. Las acciones START, RESUME y SCHEDULE quedan bloqueadas
+si no hay conexión conectada y worker verificable.
+
+La telemetría del worker usa la migration pendiente
+`20261124000000_worker_heartbeats.sql`. Hasta aplicarla y ejecutar el worker,
+la interfaz debe mostrar `Worker no verificado`; no se infiere que el proceso
+esté activo o detenido. Los resultados `OUTCOME_UNKNOWN` siguen siendo
+terminales para el conteo de mensajes, pero se muestran separadamente como
+inciertos y no se reintentan automáticamente.

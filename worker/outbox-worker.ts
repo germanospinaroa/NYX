@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import os from 'node:os'
 import { EvolutionHttpAdapter } from './evolution-http-adapter'
 import { OutcomeUnknownError, ProviderRejectedError, type EvolutionAdapter } from '../lib/evolution/adapter'
 
@@ -70,7 +71,23 @@ export async function dispatchMessage(supabase: ReturnType<typeof createWorkerCl
 
 export async function runOutboxWorker(adapter = new EvolutionHttpAdapter()) {
   const interval = Number(process.env.OUTBOX_POLL_INTERVAL_MS ?? 2000)
-  while (true) { await processOutboxOnce(adapter); await new Promise((resolve) => setTimeout(resolve, interval)) }
+  const supabase = createWorkerClient()
+  const heartbeatInterval = Math.max(5000, Number(process.env.WORKER_HEARTBEAT_INTERVAL_MS ?? 10000))
+  let lastHeartbeat = 0
+  while (true) {
+    if (Date.now() - lastHeartbeat >= heartbeatInterval) {
+      await recordWorkerHeartbeat(supabase)
+      lastHeartbeat = Date.now()
+    }
+    await processOutboxOnce(adapter)
+    await new Promise((resolve) => setTimeout(resolve, interval))
+  }
+}
+
+export async function recordWorkerHeartbeat(supabase: ReturnType<typeof createWorkerClient>) {
+  const workerId = process.env.NYX_WORKER_ID || `${os.hostname()}:${process.pid}`
+  const { error } = await supabase.from('worker_heartbeats').upsert({ worker_id: workerId, status: 'RUNNING', last_seen_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+  if (error) console.error('WORKER_HEARTBEAT_FAILED', { errorCode: 'WORKER_HEARTBEAT_FAILED' })
 }
 
 function createWorkerClient() { const url = process.env.NEXT_PUBLIC_SUPABASE_URL; const key = process.env.SUPABASE_SERVICE_ROLE_KEY; if (!url || !key) throw new Error('WORKER_SUPABASE_NOT_CONFIGURED'); return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } }) }

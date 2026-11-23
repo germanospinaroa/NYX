@@ -3,8 +3,12 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/20261123120000_campaign_controls_and_editing.sql'), 'utf8')
+const heartbeatMigration = readFileSync(resolve(process.cwd(), 'supabase/migrations/20261124000000_worker_heartbeats.sql'), 'utf8')
 const creation = readFileSync(resolve(process.cwd(), 'supabase/migrations/20261010120000_campaign_content_variants_v1.sql'), 'utf8')
 const worker = readFileSync(resolve(process.cwd(), 'worker/outbox-worker.ts'), 'utf8')
+const ui = readFileSync(resolve(process.cwd(), 'app/app/ui.tsx'), 'utf8')
+const list = readFileSync(resolve(process.cwd(), 'app/app/campaigns/campaign-list.tsx'), 'utf8')
+const detail = readFileSync(resolve(process.cwd(), 'app/app/campaigns/[id]/campaign-detail.tsx'), 'utf8')
 
 const fixtures = [
   { id: 'no-permission-male', gender: 'MALE', archived: false, permission: null },
@@ -87,5 +91,22 @@ describe('campaign control contracts', () => {
     expect(claim.indexOf('order by c.id')).toBeLessThan(claim.indexOf('with candidates as'))
     expect(claim.indexOf('with candidates as')).toBeLessThan(claim.indexOf('order by m.available_at'))
     expect(claim).toContain('m.campaign_id = any(v_campaign_ids)')
+  })
+
+  it('keeps worker heartbeat telemetry protected and service-owned', () => {
+    expect(heartbeatMigration).toContain('create table if not exists public.worker_heartbeats')
+    expect(heartbeatMigration).toContain('alter table public.worker_heartbeats enable row level security')
+    expect(heartbeatMigration).toContain('grant select, insert, update on table public.worker_heartbeats to service_role')
+    expect(heartbeatMigration).toContain('to authenticated')
+  })
+
+  it('renders global operational telemetry and blocks unsafe campaign actions', () => {
+    expect(ui).toContain("fetch('/api/evolution/status'")
+    expect(ui).toContain('Actualizado')
+    expect(ui).toContain('Listo para procesar')
+    expect(list).toContain('!operational.canProcess')
+    expect(detail).toContain('!operational.canProcess')
+    expect(detail).toContain('actionName === \'RESUME\' && !window.confirm')
+    expect(detail).toContain('actionName === \'CANCEL\' && !window.confirm')
   })
 })

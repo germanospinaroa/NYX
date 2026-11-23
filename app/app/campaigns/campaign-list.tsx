@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CampaignSummary } from '@/lib/campaigns/monitor'
 import { localDateTimeInputToUtc, scheduledRefreshDelay, toLocalDateTimeInputValue } from '@/lib/campaigns/scheduling'
-import { Icon, StatusBadge } from '../ui'
+import { Icon, StatusBadge, useOperationalStatus } from '../ui'
 
 type Campaign = CampaignSummary
 
@@ -24,7 +24,9 @@ export function CampaignList() {
   const controller = useRef<AbortController | null>(null)
   const [scheduleFor, setScheduleFor] = useState<string | null>(null)
   const [scheduleValue, setScheduleValue] = useState('')
+  const [busyCampaignId, setBusyCampaignId] = useState<string | null>(null)
   const [scheduleMin] = useState(() => toLocalDateTimeInputValue(new Date(Date.now() + 60000)))
+  const operational = useOperationalStatus()
 
   const load = useCallback(async () => {
     if (inFlight.current) return
@@ -64,8 +66,15 @@ export function CampaignList() {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   async function action(id: string, actionName: 'START' | 'PAUSE' | 'RESUME' | 'CANCEL' | 'SCHEDULE', scheduledAt?: string) {
-    const response = await fetch(`/api/campaigns/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: actionName, scheduledAt }) })
-    if (response.ok) { setScheduleFor(null); setScheduleValue(''); void load() } else setError('No fue posible actualizar la campaña.')
+    if (busyCampaignId) return
+    if (['START', 'RESUME', 'SCHEDULE'].includes(actionName) && !operational.canProcess) { setError('El procesamiento está bloqueado hasta verificar WhatsApp conectado y un worker activo.'); return }
+    if (actionName === 'RESUME' && !window.confirm('¿Quieres reanudar esta campaña? Se habilitarán sus mensajes pendientes para el worker.')) return
+    if (actionName === 'CANCEL' && !window.confirm('¿Quieres detener definitivamente esta campaña? Los mensajes pendientes se cancelarán y la acción no se puede deshacer.')) return
+    setBusyCampaignId(id)
+    try {
+      const response = await fetch(`/api/campaigns/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: actionName, scheduledAt }) })
+      if (response.ok) { setScheduleFor(null); setScheduleValue(''); void load() } else setError('No fue posible actualizar la campaña.')
+    } finally { setBusyCampaignId(null) }
   }
 
   return <div className="stack">
@@ -77,7 +86,7 @@ export function CampaignList() {
       <div className="campaign-counts"><span>{campaign.sentRecipients} completados</span><span>{campaign.failedRecipients} fallidos</span><span>{campaign.unknownRecipients} resultado incierto</span><span>{campaign.pendingRecipients} pendientes</span></div>
       {campaign.variantSummaries.length > 1 && <div className="campaign-counts" aria-label="Resumen por versión">{campaign.variantSummaries.map((variant) => <span key={variant.key}>Versión {variant.key}: {variant.recipients} personas · {variant.completed} completadas</span>)}</div>}
       {campaign.status === 'SCHEDULED' && campaign.scheduled_at && <p className="campaign-schedule">Se enviará: {new Date(campaign.scheduled_at).toLocaleString()} · {Intl.DateTimeFormat().resolvedOptions().timeZone}</p>}
-      <div className="row campaign-actions">{campaign.status === 'READY' && <><button className="secondary" onClick={() => void action(campaign.id, 'START')}>Enviar ahora</button><button className="secondary" onClick={() => setScheduleFor(campaign.id)}>Programar</button></>}{campaign.status === 'SCHEDULED' && <><button className="secondary" onClick={() => void action(campaign.id, 'START')}>Enviar ahora</button><button className="secondary" onClick={() => setScheduleFor(campaign.id)}>Cambiar programación</button><button className="secondary" onClick={() => void action(campaign.id, 'CANCEL')}>Cancelar</button></>}{campaign.status === 'PAUSED' ? <button className="secondary" onClick={() => void action(campaign.id, 'RESUME')}>Reanudar</button> : ['QUEUED', 'RUNNING'].includes(campaign.status) ? <button className="secondary" onClick={() => void action(campaign.id, 'PAUSE')}>Pausar</button> : null}{['QUEUED', 'RUNNING', 'PAUSED'].includes(campaign.status) && <button className="secondary" onClick={() => void action(campaign.id, 'CANCEL')}>Cancelar</button>}</div>
+      <div className="row campaign-actions">{campaign.status === 'READY' && <><button className="secondary" disabled={busyCampaignId !== null || !operational.canProcess} onClick={() => void action(campaign.id, 'START')}>Enviar ahora</button><button className="secondary" disabled={busyCampaignId !== null || !operational.canProcess} onClick={() => setScheduleFor(campaign.id)}>Programar</button></>}{campaign.status === 'SCHEDULED' && <><button className="secondary" disabled={busyCampaignId !== null || !operational.canProcess} onClick={() => void action(campaign.id, 'START')}>Enviar ahora</button><button className="secondary" disabled={busyCampaignId !== null || !operational.canProcess} onClick={() => setScheduleFor(campaign.id)}>Cambiar programación</button><button className="secondary" disabled={busyCampaignId !== null} onClick={() => void action(campaign.id, 'CANCEL')}>Cancelar</button></>}{campaign.status === 'PAUSED' ? <button className="secondary" disabled={busyCampaignId !== null || !operational.canProcess} onClick={() => void action(campaign.id, 'RESUME')}>Reanudar</button> : ['QUEUED', 'RUNNING'].includes(campaign.status) ? <button className="secondary" disabled={busyCampaignId !== null} onClick={() => void action(campaign.id, 'PAUSE')}>Pausar</button> : null}{['QUEUED', 'RUNNING', 'PAUSED'].includes(campaign.status) && <button className="secondary" disabled={busyCampaignId !== null} onClick={() => void action(campaign.id, 'CANCEL')}>Cancelar</button>}</div>
       {scheduleFor === campaign.id && <form className="schedule-form" onSubmit={(event) => { event.preventDefault(); if (scheduleValue) void action(campaign.id, 'SCHEDULE', localDateTimeInputToUtc(scheduleValue)) }}><label>Fecha y hora local<input type="datetime-local" value={scheduleValue} min={scheduleMin} onChange={(event) => setScheduleValue(event.target.value)} required /></label><span className="muted">Zona horaria: {Intl.DateTimeFormat().resolvedOptions().timeZone}</span><div className="row"><button type="submit">Programar campaña</button><button type="button" className="secondary" onClick={() => setScheduleFor(null)}>Cancelar</button></div></form>}
     </article>)}
     {!campaigns.length && <div className="card"><p>No hay campañas todavía.</p><Link href="/app/contacts">Elegir contactos</Link></div>}
