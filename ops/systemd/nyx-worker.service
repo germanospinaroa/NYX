@@ -1,0 +1,29 @@
+[Unit]
+Description=NYX outbox worker
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/config/workspace/NYX/worker/run.ts
+ConditionPathExists=/etc/nyx/worker.env
+
+[Service]
+Type=simple
+User=nyx
+Group=nyx
+WorkingDirectory=/config/workspace/NYX
+EnvironmentFile=/etc/nyx/worker.env
+ExecStart=/usr/bin/npm run worker:start
+Restart=on-failure
+RestartSec=10s
+KillSignal=SIGTERM
+TimeoutStopSec=30s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/config/workspace/NYX
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
