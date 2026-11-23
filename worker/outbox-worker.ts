@@ -90,7 +90,7 @@ export async function recordWorkerHeartbeat(supabase: ReturnType<typeof createWo
   if (error) console.error('WORKER_HEARTBEAT_FAILED', { errorCode: 'WORKER_HEARTBEAT_FAILED' })
 }
 
-function createWorkerClient() { const url = process.env.NEXT_PUBLIC_SUPABASE_URL; const key = process.env.SUPABASE_SERVICE_ROLE_KEY; if (!url || !key) throw new Error('WORKER_SUPABASE_NOT_CONFIGURED'); return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } }) }
+export function createWorkerClient() { const url = process.env.NEXT_PUBLIC_SUPABASE_URL; const key = process.env.SUPABASE_SERVICE_ROLE_KEY; if (!url || !key) throw new Error('WORKER_SUPABASE_NOT_CONFIGURED'); return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } }) }
 async function resolveMediaUrl(supabase: ReturnType<typeof createWorkerClient>, path: string) {
   const { data, error } = await supabase.storage.from('nyx-media').createSignedUrl(path, 3600)
   if (error || !data?.signedUrl) throw new Error('MEDIA_URL_FAILED')

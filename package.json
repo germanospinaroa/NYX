@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "worker:once": "tsx worker/run-once.ts",
+    "worker:send-one": "tsx worker/send-one.ts",
     "worker:start": "tsx worker/run.ts"
   },
   "dependencies": {
