@@ -198,3 +198,12 @@ migration, no se modificó producción y no se tocaron worker ni Evolution.
 La corrección posterior conserva el preflight actual sin gating de frecuencia
 ni permisos, y usa `lower` antes de `translate` con la collation española ICU,
 preservando `Ñ`.
+
+### Reconciliación remota de campaign controls
+
+La migration local `20261123120000_campaign_controls_and_editing.sql` fue
+aplicada una sola vez en Supabase producción mediante el conector autenticado.
+Su registro remoto es `20261123214634`; no debe volver a ejecutarse ni
+registrarse como una migration independiente. La columna `pause_requested` y
+las RPC de edición, claim, pausa, reanudación, cancelación y liberación fueron
+verificadas después de la aplicación.
