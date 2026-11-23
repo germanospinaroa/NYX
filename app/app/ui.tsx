@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 export type IconName = 'users' | 'send' | 'tags' | 'upload' | 'log-out' | 'plus' | 'search' | 'chevron-right' | 'chevron-down' | 'arrow-left' | 'arrow-up' | 'arrow-down' | 'trash' | 'archive' | 'message' | 'more' | 'filter' | 'check' | 'clock' | 'alert' | 'pause' | 'play' | 'x'
 
@@ -54,8 +55,21 @@ function NavLinks({ mobile = false }: { mobile?: boolean }) {
   })}</nav>
 }
 
+function WhatsAppConnectionIndicator() {
+  const [state, setState] = useState<'CONNECTED' | 'DISCONNECTED' | 'UNKNOWN' | 'VERIFYING'>('VERIFYING')
+  useEffect(() => {
+    let active = true
+    const check = () => { if (active) setState('VERIFYING'); void fetch('/api/evolution/status', { cache: 'no-store' }).then((response) => response.json()).then((body: { state?: 'CONNECTED' | 'DISCONNECTED' | 'UNKNOWN' }) => { if (active) setState(body.state ?? 'UNKNOWN') }).catch(() => { if (active) setState('UNKNOWN') }) }
+    check()
+    const interval = window.setInterval(check, 15000)
+    return () => { active = false; window.clearInterval(interval) }
+  }, [])
+  const label = state === 'CONNECTED' ? 'WhatsApp conectado' : state === 'DISCONNECTED' ? 'WhatsApp desconectado' : state === 'VERIFYING' ? 'WhatsApp verificando' : 'WhatsApp estado desconocido'
+  return <span className={`connection-indicator connection-${state.toLowerCase()}`} title={label}><span className="connection-dot" aria-hidden="true" />{label}</span>
+}
+
 export function AppShell({ children, logout }: { children: React.ReactNode; logout: React.ReactNode }) {
   const pathname = usePathname()
   const pageTitle = pathname.startsWith('/app/campaigns') ? 'Campañas' : pathname.startsWith('/app/labels') ? 'Etiquetas' : pathname.startsWith('/app/imports') ? 'Importar' : 'Contactos'
-  return <div className="app-shell"><aside className="sidebar"><Link className="brand" href="/app/contacts"><span className="brand-mark">N</span><span><strong>NYX</strong><small>Relationship Intelligence</small></span></Link><NavLinks /><div className="sidebar-footer"><div className="sidebar-rule" />{logout}</div></aside><div className="app-column"><header className="mobile-topbar"><Link className="brand brand-mobile" href="/app/contacts"><span className="brand-mark">N</span><strong>NYX</strong></Link><span className="mobile-page-title">{pageTitle}</span>{logout}</header><main className="app-main">{children}</main><div className="mobile-nav"><NavLinks mobile /></div></div></div>
+  return <div className="app-shell"><aside className="sidebar"><Link className="brand" href="/app/contacts"><span className="brand-mark">N</span><span><strong>NYX</strong><small>Relationship Intelligence</small></span></Link><NavLinks /><div className="sidebar-footer"><WhatsAppConnectionIndicator /><div className="sidebar-rule" />{logout}</div></aside><div className="app-column"><header className="mobile-topbar"><Link className="brand brand-mobile" href="/app/contacts"><span className="brand-mark">N</span><strong>NYX</strong></Link><span className="mobile-page-title">{pageTitle}</span><WhatsAppConnectionIndicator />{logout}</header><main className="app-main">{children}</main><div className="mobile-nav"><NavLinks mobile /></div></div></div>
 }

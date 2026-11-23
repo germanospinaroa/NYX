@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { humanCampaignStatus, humanMessageStatus, humanMessageType, humanRecipientStatus, initials, summarizeCampaign } from './monitor'
+import { countRecipientsByFilter, filterRecipients, humanCampaignStatus, humanMessageStatus, humanMessageType, humanRecipientStatus, initials, summarizeCampaign } from './monitor'
 
 const list = readFileSync(resolve(process.cwd(), 'app/app/campaigns/campaign-list.tsx'), 'utf8')
 const detail = readFileSync(resolve(process.cwd(), 'app/app/campaigns/[id]/campaign-detail.tsx'), 'utf8')
@@ -34,6 +34,47 @@ describe('campaign live monitor', () => {
     expect(initials('Andrea')).toBe('A')
     expect(initials('Contacto')).toBe('C')
     expect(initials('   ')).toBe('C')
+  })
+
+  it('filters recipients by recipient status and keeps alphabetical order', () => {
+    const recipients = [
+      { id: '2', contactName: 'Zoe Beta', status: 'FAILED' },
+      { id: '1', contactName: 'Ana Alfa', status: 'SENT' },
+      { id: '3', contactName: 'Bruno Gamma', status: 'QUEUED' },
+      { id: '4', contactName: 'Carla Delta', status: 'OUTCOME_UNKNOWN' },
+      { id: '5', contactName: 'Diana Épsilon', status: 'CANCELLED' },
+    ]
+    expect(filterRecipients(recipients, 'SENT').map((recipient) => recipient.id)).toEqual(['1'])
+    expect(filterRecipients(recipients, 'FAILED').map((recipient) => recipient.id)).toEqual(['2'])
+    expect(filterRecipients(recipients, 'OUTCOME_UNKNOWN').map((recipient) => recipient.id)).toEqual(['4'])
+    expect(filterRecipients(recipients, 'PENDING').map((recipient) => recipient.id)).toEqual(['3'])
+    expect(filterRecipients(recipients, 'ALL').map((recipient) => recipient.id)).toEqual(['1', '3', '4', '5', '2'])
+    expect(countRecipientsByFilter(recipients, 'SENT')).toBe(1)
+    expect(countRecipientsByFilter(recipients, 'FAILED')).toBe(1)
+    expect(countRecipientsByFilter(recipients, 'OUTCOME_UNKNOWN')).toBe(1)
+    expect(countRecipientsByFilter(recipients, 'PENDING')).toBe(1)
+  })
+
+  it('keeps filtering based on recipient status when steps have mixed outcomes', () => {
+    const recipients = [{ id: '1', contactName: 'Ana Alfa', status: 'FAILED', steps: [{ status: 'SENT' }, { status: 'FAILED' }] }]
+    expect(filterRecipients(recipients, 'FAILED')).toHaveLength(1)
+    expect(filterRecipients(recipients, 'SENT')).toHaveLength(0)
+  })
+
+  it('matches the monitor counts and restores the full list after an update', () => {
+    const initial = [
+      ...Array.from({ length: 50 }, (_, index) => ({ id: `sent-${index}`, contactName: `Contacto ${index}`, status: 'SENT' })),
+      { id: 'failed-1', contactName: 'Contacto Fallo 1', status: 'FAILED' },
+      { id: 'failed-2', contactName: 'Contacto Fallo 2', status: 'FAILED' },
+    ]
+    expect(filterRecipients(initial, 'SENT')).toHaveLength(50)
+    expect(filterRecipients(initial, 'FAILED')).toHaveLength(2)
+    expect(filterRecipients(initial, 'OUTCOME_UNKNOWN')).toHaveLength(0)
+    expect(filterRecipients(initial, 'PENDING')).toHaveLength(0)
+
+    const updated = [...initial, { id: 'failed-3', contactName: 'Contacto Fallo 3', status: 'FAILED' }]
+    expect(filterRecipients(updated, 'FAILED')).toHaveLength(3)
+    expect(filterRecipients(updated, 'ALL')).toHaveLength(53)
   })
 
   it('defines polling, focus/visibility refresh and overlap protection', () => {

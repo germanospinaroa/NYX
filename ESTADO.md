@@ -132,6 +132,17 @@ Plugin nativo de Codex `ecc@ecc`, versión `2.2.3`, revisión `ef648e01899ba3e8d
 
 ## Último milestone
 
+Campaign control integral implementado localmente: editor READY sobre el mismo
+campaign_id con RPC transaccional de reemplazo, controles PAUSE/RESUME/CANCEL,
+indicador server-side de conexión Evolution y revalidación del worker antes de
+cada despacho. La liberación de claims por pausa, cancelación o desconexión usa
+una RPC atómica con lock de campaña para evitar estados stale entre el worker y
+los controles. La nueva migration forward-only
+`20261123120000_campaign_controls_and_editing.sql` queda pendiente de
+reconciliación y aplicación remota. Next.js quedó actualizado localmente de
+16.4.0 a 16.4.6 junto con `eslint-config-next`; el build local pasa. No se
+desplegó Vercel, no se actualizó el VPS y no se enviaron mensajes reales.
+
 Campaign Live Monitor V1 implementado localmente: polling sin solapamientos,
 resumen por recipient, detalle de pasos y estados públicos sanitizados. `SENT`
 representa aceptación del dispatch por el proveedor, no entrega ni lectura.
@@ -154,6 +165,13 @@ de audio sin copiar mensajes, estados, asignaciones ni programación. El
 compositor usa esa información como un nuevo borrador editable y mantiene la
 selección de Contacts como fallback cuando no existe `?from=`. No se modificó
 schema ni se ejecutaron operaciones remotas en este milestone.
+
+Filtros interactivos del monitor implementados localmente: los indicadores de
+completados, fallidos, resultado incierto y pendientes filtran destinatarios
+por `campaign_recipients.status`, conservan el filtro durante el polling y
+mantienen el orden alfabético. Los fallos muestran la incidencia y el paso
+afectado sin confundir el estado del destinatario con el del mensaje. No se
+modificaron schema, API de envío, worker, Evolution ni datos remotos.
 
 ## Siguiente fase
 

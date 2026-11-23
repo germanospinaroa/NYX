@@ -29,6 +29,14 @@ Opcionales:
 - `OUTBOX_PACING_MS`
 - `OUTBOX_POLL_INTERVAL_MS`
 - `EVOLUTION_REQUEST_TIMEOUT_MS`
+- `EVOLUTION_HEALTH_TIMEOUT_MS`
+
+Antes de reclamar un lote y antes de cada despacho, el worker consulta
+`GET /instance/connectionState/{instance}` server-side. Solo el estado explícito
+`open` permite despachar; `close`, timeout, respuesta inválida o una instancia
+sin configuración dejan el lote sin reclamar. Una pausa efectiva espera a que
+no existan mensajes `SENDING`; los requests HTTP ya iniciados se reconcilian y
+un `OUTCOME_UNKNOWN` no se reintenta automáticamente.
 
 La ejecución local requiere un runner TypeScript del entorno, por ejemplo
 `tsx`, y se inicia con `worker/run.ts`. No se incluyen credenciales ni se

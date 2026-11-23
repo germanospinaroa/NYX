@@ -1,0 +1,27 @@
+{
+  "project": "NYX",
+  "commit": "working-tree",
+  "viewports": [
+    { "width": 390, "height": 844, "screenshot": "qa/login-390.png", "url": "http://localhost:3000/login" },
+    { "width": 768, "height": 1024, "screenshot": "qa/login-768.png", "url": "http://localhost:3000/login" },
+    { "width": 1440, "height": 900, "screenshot": "qa/login-1440.png", "url": "http://localhost:3000/login" }
+  ],
+  "checks": [
+    { "name": "typecheck", "command": "npm run typecheck", "result": "PASS", "environment": "local" },
+    { "name": "lint", "command": "npm run lint", "result": "PASS_WITH_WARNINGS", "details": "0 errors; 5 existing warnings in the individual message composer" },
+    { "name": "unit_and_contract_tests", "command": "npm test -- --run", "result": "PASS", "details": "48 files, 157 tests" },
+    { "name": "production_build", "command": "npm run build", "result": "PASS", "details": "Next.js 16.4.6 compiled successfully, passed TypeScript, static generation and route collection." },
+    { "name": "browser_responsive_390", "viewport": "390x844", "command": "npx playwright screenshot --viewport-size=390,844 http://localhost:3000/login qa/login-390.png", "result": "PASS", "details": "Unauthenticated login surface captured; campaign workspace requires an owner session." },
+    { "name": "browser_responsive_768", "viewport": "768x1024", "command": "npx playwright screenshot --viewport-size=768,1024 http://localhost:3000/login qa/login-768.png", "result": "PASS", "details": "Unauthenticated login surface captured; campaign workspace requires an owner session." },
+    { "name": "browser_responsive_1440", "viewport": "1440x900", "command": "npx playwright screenshot --viewport-size=1440,900 http://localhost:3000/login qa/login-1440.png", "result": "PASS", "details": "Unauthenticated login surface captured; campaign workspace requires an owner session." },
+    { "name": "supabase_migration", "result": "NOT_PERFORMED", "details": "Remote migration ledger requires reconciliation; no db push or remote write was executed." },
+    { "name": "worker_vps", "result": "NOT_PERFORMED", "details": "Worker deployment/status access was not available; no worker was started against production." },
+    { "name": "production_deployment", "result": "NOT_PERFORMED", "details": "No Vercel deployment or external service change was executed from this workspace." },
+    { "name": "real_message_dispatch", "result": "NOT_PERFORMED", "details": "No real WhatsApp message was sent." }
+  ],
+  "limitations": [
+    "The new migration is forward-only and must be reconciled with the remote Supabase migration ledger before application.",
+    "The VPS worker must be updated together with the web deployment before pause/disconnect protections are operational in production.",
+    "The migration remains unapplied and the authenticated campaign/worker E2E flow is still pending."
+  ]
+}

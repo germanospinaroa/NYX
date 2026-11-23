@@ -1,4 +1,5 @@
 import { OutcomeUnknownError, ProviderRejectedError, type EvolutionAdapter, type ProviderAccepted, type SendAudioInput, type SendMediaInput, type SendTextInput } from '../lib/evolution/adapter'
+import { getEvolutionConnectionState } from '../lib/evolution/connection'
 
 export class EvolutionHttpAdapter implements EvolutionAdapter {
   private readonly baseUrl = required('EVOLUTION_BASE_URL').replace(/\/$/u, '')
@@ -19,6 +20,8 @@ export class EvolutionHttpAdapter implements EvolutionAdapter {
     form.append('file', toBlob(input.audio, input.mimeType), input.fileName)
     return this.postForm(`/message/sendWhatsAppAudio/${encodeURIComponent(this.instance)}`, form)
   }
+
+  async getConnectionState() { return getEvolutionConnectionState() }
 
   private async postJson(path: string, payload: Record<string, string | boolean>) {
     return this.postRequest(path, { headers: { apikey: this.apiKey, 'content-type': 'application/json' }, body: JSON.stringify(payload) })

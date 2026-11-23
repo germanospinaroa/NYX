@@ -27,7 +27,7 @@ function clean(step: Step) {
   return { type: step.type, neutralText: step.neutralText, maleText: step.maleText || undefined, femaleText: step.femaleText || undefined }
 }
 
-export function CampaignForm() {
+export function CampaignForm({ campaignId }: { campaignId?: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const fromId = searchParams.get('from')
@@ -42,15 +42,17 @@ export function CampaignForm() {
   const [previewVariantKey, setPreviewVariantKey] = useState<ContentVariantKey>('A')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [templateLoading, setTemplateLoading] = useState(() => Boolean(fromId))
+  const [templateLoading, setTemplateLoading] = useState(() => Boolean(fromId || campaignId))
   const [templateError, setTemplateError] = useState(false)
   const [templateSourceName, setTemplateSourceName] = useState<string | null>(null)
   const textareas = useRef<Record<string, HTMLTextAreaElement | null>>({})
+  const dirtyRef = useRef(false)
+  const submittedRef = useRef(false)
   const registerTextarea = (key: string, node: HTMLTextAreaElement | null) => { textareas.current[key] = node }
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (!fromId) return
+    if (!fromId || campaignId) return
     let active = true
     setTemplateLoading(true)
     setTemplateError(false)
@@ -68,7 +70,7 @@ export function CampaignForm() {
       window.sessionStorage.removeItem('nyx-campaign-selection')
     }).catch(() => { if (active) setTemplateError(true) }).finally(() => { if (active) setTemplateLoading(false) })
     return () => { active = false }
-  }, [fromId])
+  }, [campaignId, fromId])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Selection is restored from Contacts after mount, unless a reuse template owns the initial state.
@@ -78,6 +80,30 @@ export function CampaignForm() {
     const raw = window.sessionStorage.getItem('nyx-campaign-selection')
     if (raw) try { setSelection(JSON.parse(raw) as CampaignSelection) } catch { setError('No fue posible recuperar la audiencia seleccionada.') }
   }, [fromId])
+
+  useEffect(() => {
+    if (!campaignId) return
+    let active = true
+    void fetch(`/api/campaigns/${encodeURIComponent(campaignId)}/edit`, { cache: 'no-store' }).then(async (response) => {
+      if (!response.ok) throw new Error('CAMPAIGN_EDIT_LOAD_FAILED')
+      const payload = await response.json() as { name: string | null; selection: CampaignSelection; variants: Array<{ key: ContentVariantKey; steps: Array<Omit<Step, 'id'> & { id?: string }> }> }
+      if (!active) return
+      const restoredVariants = payload.variants.map((variant) => ({ key: variant.key, steps: variant.steps.map((step) => ({ ...base(), ...step, id: crypto.randomUUID(), recording: false, uploading: false, reused: Boolean(step.mediaPath) })) }))
+      setName(payload.name ?? '')
+      setSelection(payload.selection)
+      setVariants(restoredVariants)
+      setActiveVariantKey(restoredVariants[0]?.key ?? 'A')
+      setPreviewVariantKey(restoredVariants[0]?.key ?? 'A')
+    }).catch(() => { if (active) setTemplateError(true) }).finally(() => { if (active) setTemplateLoading(false) })
+    return () => { active = false }
+  }, [campaignId])
+
+  useEffect(() => {
+    if (!campaignId) return
+    const beforeUnload = (event: BeforeUnloadEvent) => { if (dirtyRef.current && !submittedRef.current) { event.preventDefault(); event.returnValue = '' } }
+    window.addEventListener('beforeunload', beforeUnload)
+    return () => window.removeEventListener('beforeunload', beforeUnload)
+  }, [campaignId])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -176,14 +202,15 @@ export function CampaignForm() {
     if (invalidVariant) { setError(`Versión ${invalidVariant.key} · completa todos los pasos antes de preparar la campaña.`); return }
     setSaving(true)
     try {
-      const response = await fetch('/api/campaigns', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, variants: variants.map((variant) => ({ key: variant.key, steps: variant.steps.map(clean) })), selection }) })
+      const response = await fetch(campaignId ? `/api/campaigns/${encodeURIComponent(campaignId)}/edit` : '/api/campaigns', { method: campaignId ? 'PATCH' : 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, variants: variants.map((variant) => ({ key: variant.key, steps: variant.steps.map(clean) })), selection }) })
       const result = await response.json().catch(() => ({})) as { error?: string; campaign?: { campaign_id?: string } }
-      if (!response.ok || !result.campaign?.campaign_id) throw new Error(result.error ?? 'CAMPAIGN_CREATE_FAILED')
+      if (!response.ok || (!campaignId && !result.campaign?.campaign_id)) throw new Error(result.error ?? 'CAMPAIGN_CREATE_FAILED')
+      submittedRef.current = true
       window.sessionStorage.removeItem('nyx-campaign-selection')
-      router.push(`/app/campaigns/${result.campaign.campaign_id}`)
+      router.push(`/app/campaigns/${campaignId ?? result.campaign?.campaign_id}`)
     } catch (submitError) {
       const code = submitError instanceof Error ? submitError.message : ''
-      setError(code === 'VARIABLE_NO_COMPATIBLE' ? 'Esta variable todavía no está disponible.' : code === 'MISSING_RECIPIENT_NAME' ? 'Falta el nombre de una persona elegible.' : code === 'NO_ELIGIBLE_RECIPIENTS' ? 'No hay personas elegibles en esta audiencia.' : code === 'VARIANT_STEP_COUNT_MISMATCH' ? 'Todas las versiones deben tener el mismo número de pasos.' : code === 'VARIANT_STEP_TYPE_MISMATCH' ? 'Todas las versiones deben usar el mismo tipo en cada paso.' : code === 'INVALID_AUDIO_MIME' ? 'Una versión contiene un formato de audio no compatible.' : 'No fue posible preparar la campaña.')
+      setError(code === 'CAMPAIGN_EDIT_CLOSED' ? 'La campaña ya comenzó a procesarse y no admite edición.' : code === 'VARIABLE_NO_COMPATIBLE' ? 'Esta variable todavía no está disponible.' : code === 'MISSING_RECIPIENT_NAME' ? 'Falta el nombre de una persona elegible.' : code === 'NO_ELIGIBLE_RECIPIENTS' ? 'No hay personas elegibles en esta audiencia.' : code === 'VARIANT_STEP_COUNT_MISMATCH' ? 'Todas las versiones deben tener el mismo número de pasos.' : code === 'VARIANT_STEP_TYPE_MISMATCH' ? 'Todas las versiones deben usar el mismo tipo en cada paso.' : code === 'INVALID_AUDIO_MIME' ? 'Una versión contiene un formato de audio no compatible.' : 'No fue posible guardar la campaña.')
       setSaving(false)
     }
   }
@@ -198,7 +225,7 @@ export function CampaignForm() {
   const chooseAudience = (next: CampaignSelection | null) => { setSelection(next); setAudiencePickerOpen(false); setSampleIndex(0); setError(null) }
   const openAudiencePicker = () => { setError(null); setAudiencePickerOpen(true) }
 
-  return <form className="campaign-sequence-form" onSubmit={(event) => void submit(event)}>
+  return <form className="campaign-sequence-form" onChange={() => { if (campaignId) dirtyRef.current = true }} onSubmit={(event) => void submit(event)}>
     {error && <div className="inline-alert" role="alert">{error}</div>}
     {audiencePickerOpen ? <AudiencePicker initialSelection={selection} onConfirm={chooseAudience} onCancel={() => setAudiencePickerOpen(false)} /> : <div className="campaign-composer-layout"><div className="card stack">
       <div className="section-heading"><div><span className="eyebrow">AUDIENCIA</span><h1>Nueva campaña</h1></div><button type="button" className="secondary" onClick={openAudiencePicker}>{selection ? 'Editar audiencia' : 'Seleccionar personas'}</button></div>
@@ -214,7 +241,7 @@ export function CampaignForm() {
       </article>)}
       <div className="row"><button type="button" className="secondary" onClick={() => setVariants((current) => current.map((variant) => variant.key === activeVariantKey ? { ...variant, steps: [...variant.steps, makeStep('TEXT')] } : variant))}>+ Texto</button><button type="button" className="secondary" onClick={() => setVariants((current) => current.map((variant) => variant.key === activeVariantKey ? { ...variant, steps: [...variant.steps, makeStep('IMAGE')] } : variant))}>+ Imagen</button><button type="button" className="secondary" onClick={() => setVariants((current) => current.map((variant) => variant.key === activeVariantKey ? { ...variant, steps: [...variant.steps, makeStep('AUDIO')] } : variant))}>+ Audio</button></div>
     </div><aside className="composer-preview"><div className="row"><strong>Vista como</strong>{preflight?.samples?.length ? <select value={sampleIndex} onChange={(event) => setSampleIndex(Number(event.target.value))}>{preflight.samples.map((person, index) => <option key={person.display_name + index} value={index}>{person.display_name}</option>)}</select> : <span>muestra elegible</span>}</div><label>Versión<select value={previewVariantKey} onChange={(event) => setPreviewVariantKey(event.target.value as ContentVariantKey)}>{variants.map((variant) => <option key={variant.key} value={variant.key}>Versión {variant.key}</option>)}</select></label><small className="muted">Adaptación: {sampleVariant === 'NEUTRAL' ? 'general' : sampleVariant === 'MALE' ? 'hombre' : 'mujer'}</small><ConversationPreview steps={previewSteps} recipient={{ name: sample?.display_name ?? audience }} /></aside></div>}
-    {!audiencePickerOpen && <div className="row composer-footer"><button type="button" className="secondary" onClick={() => router.back()}>Cancelar</button><button disabled={saving || Boolean(audioRecorder.activeStepId) || variants.some((variant) => variant.steps.some((step) => step.uploading || step.recording)) || !selection || preflightLoading || !preflight || preflight.eligible < 1}>{saving ? 'Preparando…' : 'Preparar campaña'}</button></div>}
+    {!audiencePickerOpen && <div className="row composer-footer"><button type="button" className="secondary" onClick={() => { if (!dirtyRef.current || window.confirm('¿Salir sin guardar los cambios?')) { submittedRef.current = true; router.push(campaignId ? `/app/campaigns/${campaignId}` : '/app/campaigns') } }}>{campaignId ? 'Cancelar edición' : 'Cancelar'}</button><button disabled={saving || Boolean(audioRecorder.activeStepId) || variants.some((variant) => variant.steps.some((step) => step.uploading || step.recording)) || !selection || preflightLoading || !preflight || preflight.eligible < 1}>{saving ? (campaignId ? 'Guardando…' : 'Preparando…') : campaignId ? 'Guardar cambios' : 'Preparar campaña'}</button></div>}
   </form>
 }
 

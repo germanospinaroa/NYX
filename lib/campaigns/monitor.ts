@@ -1,6 +1,8 @@
 export const TERMINAL_CAMPAIGN_STATUSES = ['COMPLETED', 'FAILED', 'CANCELLED'] as const
 export const ACTIVE_CAMPAIGN_STATUSES = ['QUEUED', 'RUNNING', 'PAUSED'] as const
 export const TERMINAL_MESSAGE_STATUSES = ['SENT', 'FAILED', 'OUTCOME_UNKNOWN', 'CANCELLED'] as const
+export const TERMINAL_RECIPIENT_STATUSES = ['SENT', 'FAILED', 'OUTCOME_UNKNOWN', 'CANCELLED'] as const
+export type RecipientFilter = 'ALL' | 'SENT' | 'FAILED' | 'OUTCOME_UNKNOWN' | 'PENDING'
 
 export type CampaignRecipientSummary = { status: string; content_variant_key?: string | null; messages?: CampaignMessageSummary[] }
 export type CampaignMessageSummary = { status: string }
@@ -62,6 +64,22 @@ export function initials(name: string): string {
 export function humanRecipientStatus(status: string, hasSentSteps = false): string {
   if (status === 'QUEUED' && hasSentSteps) return 'En proceso'
   return ({ QUEUED: 'Pendiente', SENT: 'Completado', FAILED: 'No se pudo completar', OUTCOME_UNKNOWN: 'Requiere revisión', CANCELLED: 'Cancelado' } as Record<string, string>)[status] ?? 'Pendiente'
+}
+
+export function recipientMatchesFilter(status: string, filter: RecipientFilter): boolean {
+  if (filter === 'ALL') return true
+  if (filter === 'PENDING') return !TERMINAL_RECIPIENT_STATUSES.includes(status as typeof TERMINAL_RECIPIENT_STATUSES[number])
+  return status === filter
+}
+
+export function filterRecipients<T extends { id: string; contactName: string; status: string }>(recipients: T[], filter: RecipientFilter): T[] {
+  return recipients
+    .filter((recipient) => recipientMatchesFilter(recipient.status, filter))
+    .sort((left, right) => left.contactName.localeCompare(right.contactName, 'es', { sensitivity: 'base' }) || left.id.localeCompare(right.id))
+}
+
+export function countRecipientsByFilter<T extends { id: string; contactName: string; status: string }>(recipients: T[], filter: Exclude<RecipientFilter, 'ALL'>): number {
+  return recipients.filter((recipient) => recipientMatchesFilter(recipient.status, filter)).length
 }
 
 export function summarizeCampaign(input: CampaignSummaryInput): CampaignSummary {

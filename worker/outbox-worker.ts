@@ -6,11 +6,23 @@ type OutboxMessage = { id: string; campaign_id?: string | null; sequence_id?: st
 
 export async function processOutboxOnce(adapter = new EvolutionHttpAdapter()) {
   const supabase = createWorkerClient()
+  if (adapter.getConnectionState && await adapter.getConnectionState() !== 'CONNECTED') return 0
   const { data, error } = await supabase.rpc('claim_outbox_batch', { p_limit: Number(process.env.OUTBOX_BATCH_SIZE ?? 20) })
   if (error) throw new Error('OUTBOX_CLAIM_FAILED')
   const messages = (data ?? []) as OutboxMessage[]
   for (const message of messages) {
     try {
+      if (message.campaign_id) {
+        const { data: campaign } = await supabase.from('campaigns').select('status, pause_requested').eq('id', message.campaign_id).maybeSingle()
+        if (!campaign || campaign.status === 'PAUSED' || campaign.status === 'CANCELLED' || campaign.pause_requested) {
+          await releaseClaimedMessage(supabase, message.id)
+          continue
+        }
+      }
+      if (adapter.getConnectionState && await adapter.getConnectionState() !== 'CONNECTED') {
+        await releaseClaimedMessage(supabase, message.id)
+        continue
+      }
       const accepted = await dispatchMessage(supabase, adapter, message)
        const { data: persisted, error: persistError } = await supabase.from('messages').update({ status: 'SENT', provider_message_id: accepted.providerMessageId, sent_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', message.id).eq('status', 'SENDING').select('id').maybeSingle()
        if (persistError) {
@@ -88,5 +100,9 @@ function sanitizedDispatchError(error: unknown) {
   if (error instanceof Error && error.message === 'MEDIA_DOWNLOAD_FAILED') return 'MEDIA_DOWNLOAD_FAILED'
   if (error instanceof Error && error.message === 'MEDIA_URL_FAILED') return 'MEDIA_URL_FAILED'
   return 'DISPATCH_FAILED'
+}
+async function releaseClaimedMessage(supabase: ReturnType<typeof createWorkerClient>, messageId: string) {
+  const { error } = await supabase.rpc('release_claimed_message', { p_message_id: messageId })
+  if (error) console.error('OUTBOX_RELEASE_FAILED', { errorCode: 'OUTBOX_RELEASE_FAILED' })
 }
 async function pacing() { const ms = Math.max(0, Number(process.env.OUTBOX_PACING_MS ?? 1000)); if (ms) await new Promise((resolve) => setTimeout(resolve, ms)) }

@@ -219,6 +219,14 @@ label { color: var(--nyx-ink); font-size: 13px; font-weight: 620; }
 .metric { gap: 5px; padding: 16px; border: 1px solid var(--nyx-border); border-radius: 10px; background: var(--nyx-surface); }
 .metric strong { color: var(--nyx-ink); font-size: 25px; letter-spacing: -.04em; }
 .metric span { color: var(--nyx-muted); font-size: 12px; }
+.metric-filter { width: 100%; color: inherit; text-align: left; cursor: pointer; }
+.metric-filter:hover, .metric-filter.active { border-color: var(--nyx-accent); background: var(--nyx-accent-soft); }
+.metric-filter:focus-visible, .recipient-toggle:focus-visible, .audience-controls button:focus-visible { outline: 3px solid var(--nyx-accent-soft); outline-offset: 2px; }
+.campaign-status-note { margin: 10px 0 0; font-size: 12px; }
+.audience-controls { align-items: center; }
+.empty-state { padding: 28px; color: var(--nyx-muted); text-align: center; }
+.recipient-issue { display: grid; gap: 3px; margin: 0 16px 12px 52px; padding: 10px 12px; border-left: 3px solid var(--nyx-danger); color: var(--nyx-danger); background: var(--nyx-danger-soft); font-size: 12px; }
+.recipient-issue span { color: var(--nyx-ink); }
 .table-scroll { border-radius: 12px; }
 .contacts-workspace { width: 100%; max-width: none; }
 .contacts-filter-section, .contacts-selection-section { border: 0; }
@@ -343,6 +351,16 @@ input[type=color] { width: 40px; min-height: 40px; padding: 3px; cursor: pointer
 .detail-skeleton span { display: block; height: 48px; border-radius: 9px; background: #e9e8e3; animation: pulse 1.3s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .5; } }
 @media (max-width: 760px) { .profile-header { align-items: flex-start; flex-wrap: wrap; } .profile-actions { width: 100%; } .profile-actions .button-link { flex: 1; justify-content: center; } .detail-grid { grid-template-columns: 1fr; } }
+
+.connection-indicator { display: inline-flex; align-items: center; gap: 7px; color: #a8a8ae; font-size: 12px; }
+.connection-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #9a9aa0; }
+.connection-connected .connection-dot { background: #47c98b; box-shadow: 0 0 0 3px #47c98b22; }
+.connection-disconnected .connection-dot { background: #e27b72; box-shadow: 0 0 0 3px #e27b7222; }
+.connection-unknown .connection-dot { background: #e5b85c; box-shadow: 0 0 0 3px #e5b85c22; }
+.connection-panel { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+.connection-panel .connection-dot { flex: 0 0 auto; }
+.campaign-control-bar { flex-wrap: wrap; margin: 4px 0 18px; }
+.danger-button { color: #b94d47; border-color: #e1aaa5; }
 .sequence-composer { max-width: none; }
 .form-narrow { max-width: 720px; }
 .button-link.secondary-link { display: inline-flex; align-items: center; }

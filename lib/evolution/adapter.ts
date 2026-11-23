@@ -16,6 +16,7 @@ export interface EvolutionAdapter {
   sendText(input: SendTextInput): Promise<ProviderAccepted>
   sendMedia(input: SendMediaInput): Promise<ProviderAccepted>
   sendAudio(input: SendAudioInput): Promise<ProviderAccepted>
+  getConnectionState?(): Promise<'CONNECTED' | 'DISCONNECTED' | 'UNKNOWN'>
 }
 
 export class MockEvolutionAdapter implements EvolutionAdapter {
