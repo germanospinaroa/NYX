@@ -73,6 +73,28 @@ claimed=$(run_sql "select count(*) from public.messages where status = 'SENDING'
 total=$(run_sql "select count(*) from public.messages")
 [[ "$claimed" == "$total" ]] || { echo "FAIL: duplicate/lost claim count ($claimed/$total)" >&2; exit 1; }
 
+# CANCEL first: CLAIM waits for the campaign lock, then sees the terminal
+# campaign and claims nothing; cancellation owns all still-queued messages.
+run_sql "update public.campaigns set status='QUEUED', pause_requested=false where id='$campaign_one'; update public.messages set status='QUEUED', attempt_count=0, claimed_at=null where campaign_id='$campaign_one';" >/dev/null
+(run_sql "begin; select public.cancel_campaign('$campaign_one'); select pg_sleep(0.5); commit" >/dev/null) & cancel_first_pid=$!
+sleep 0.1
+(run_sql "select count(*) from public.claim_outbox_batch(20)" >/dev/null) & claim_after_cancel_pid=$!
+wait "$cancel_first_pid"
+wait "$claim_after_cancel_pid"
+cancel_first_state=$(run_sql "select c.status || ':' || count(*) filter (where m.status='QUEUED') || ':' || count(*) filter (where m.status='CANCELLED') from public.campaigns c join public.messages m on m.campaign_id=c.id where c.id='$campaign_one' group by c.status")
+[[ "$cancel_first_state" == 'CANCELLED:0:3' ]] || { echo "FAIL: cancel-first state $cancel_first_state" >&2; exit 1; }
+
+# CLAIM first: CANCEL waits for the claim transaction, then preserves the
+# already-dispatched SENDING row and cancels only the remaining queue.
+run_sql "update public.campaigns set status='QUEUED', pause_requested=false where id='$campaign_one'; update public.messages set status='QUEUED', attempt_count=0, claimed_at=null where campaign_id='$campaign_one';" >/dev/null
+(run_sql "begin; select count(*) from public.claim_outbox_batch(1); select pg_sleep(0.5); commit" >/dev/null) & claim_first_pid=$!
+sleep 0.1
+(run_sql "select public.cancel_campaign('$campaign_one')" >/dev/null) & cancel_after_claim_pid=$!
+wait "$claim_first_pid"
+wait "$cancel_after_claim_pid"
+claim_first_state=$(run_sql "select c.status || ':' || count(*) filter (where m.status='SENDING') || ':' || count(*) filter (where m.status='CANCELLED') from public.campaigns c join public.messages m on m.campaign_id=c.id where c.id='$campaign_one' group by c.status")
+[[ "$claim_first_state" == 'CANCELLED:1:2' ]] || { echo "FAIL: claim-first state $claim_first_state" >&2; exit 1; }
+
 # RELEASE serializes with cancellation and preserves the terminal state.
 run_sql "update public.messages set status='SENDING', claimed_at=now() where id=(select id from public.messages where campaign_id='$campaign_one' limit 1); update public.campaigns set status='CANCELLED', pause_requested=false where id='$campaign_one';"
 released=$(run_sql "select public.release_claimed_message((select id from public.messages where campaign_id='$campaign_one' and status='SENDING' limit 1))")
