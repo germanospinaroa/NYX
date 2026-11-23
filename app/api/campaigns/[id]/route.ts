@@ -4,7 +4,7 @@ import { requireUser } from '@/lib/supabase/user'
 import { isSameOrigin } from '@/lib/security/request'
 import { publicFailureReason } from '@/lib/campaigns/monitor'
 import { comparePeopleByName } from '@/lib/contacts/sort'
-import { getEvolutionConnectionState } from '@/lib/evolution/connection'
+import { getProcessingReadiness, processingBlockedReason, requiresProcessingReadiness } from '@/lib/ops/processing-readiness'
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -56,5 +56,28 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
 const schema = z.object({ action: z.enum(['START', 'PAUSE', 'RESUME', 'CANCEL', 'SCHEDULE']), scheduledAt: z.string().datetime().optional() })
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try { if (!isSameOrigin(request)) return NextResponse.json({ error: 'INVALID_ORIGIN' }, { status: 403 }); const { supabase } = await requireUser(); const { id } = await params; const parsed = schema.safeParse(await request.json()); if (!parsed.success || (parsed.data.action === 'SCHEDULE' && !parsed.data.scheduledAt)) return NextResponse.json({ error: 'INVALID_CAMPAIGN_ACTION' }, { status: 422 }); if (parsed.data.action === 'START' || parsed.data.action === 'RESUME') { const state = await getEvolutionConnectionState(); if (state !== 'CONNECTED') return NextResponse.json({ error: state === 'DISCONNECTED' ? 'EVOLUTION_DISCONNECTED' : 'EVOLUTION_STATE_UNKNOWN' }, { status: 409 }) } const rpc = parsed.data.action === 'START' ? 'queue_campaign' : parsed.data.action === 'PAUSE' ? 'pause_campaign' : parsed.data.action === 'RESUME' ? 'resume_campaign' : parsed.data.action === 'SCHEDULE' ? 'schedule_campaign' : 'cancel_campaign'; const rpcArgs = parsed.data.action === 'SCHEDULE' ? { p_campaign_id: id, p_scheduled_at: parsed.data.scheduledAt } : { p_campaign_id: id }; const { data, error } = await supabase.rpc(rpc, rpcArgs); if (error) return NextResponse.json({ error: 'CAMPAIGN_UPDATE_FAILED' }, { status: 400 }); if (data === false) return NextResponse.json({ id, status: parsed.data.action === 'PAUSE' ? 'RUNNING' : 'UNKNOWN', effective: false }, { status: 409 }); const status = parsed.data.action === 'START' || parsed.data.action === 'RESUME' ? 'QUEUED' : parsed.data.action === 'PAUSE' ? 'PAUSED' : parsed.data.action === 'SCHEDULE' ? 'SCHEDULED' : 'CANCELLED'; return NextResponse.json({ id, status, effective: true, scheduledAt: parsed.data.scheduledAt ?? null }) } catch (error) { const message = error instanceof Error && error.message === 'UNAUTHORIZED' ? error.message : 'CAMPAIGN_UPDATE_FAILED'; return NextResponse.json({ error: message }, { status: message === 'UNAUTHORIZED' ? 401 : 400 }) }
+  try {
+    if (!isSameOrigin(request)) return NextResponse.json({ error: 'INVALID_ORIGIN' }, { status: 403 })
+    const { supabase } = await requireUser()
+    const { id } = await params
+    const parsed = schema.safeParse(await request.json())
+    if (!parsed.success || (parsed.data.action === 'SCHEDULE' && !parsed.data.scheduledAt)) return NextResponse.json({ error: 'INVALID_CAMPAIGN_ACTION' }, { status: 422 })
+
+    const action = parsed.data.action
+    if (requiresProcessingReadiness(action)) {
+      const readiness = await getProcessingReadiness(supabase)
+      if (!readiness.canProcess) return NextResponse.json({ error: processingBlockedReason(readiness) }, { status: 409 })
+    }
+
+    const rpc = action === 'START' ? 'queue_campaign' : action === 'PAUSE' ? 'pause_campaign' : action === 'RESUME' ? 'resume_campaign' : action === 'SCHEDULE' ? 'schedule_campaign' : 'cancel_campaign'
+    const rpcArgs = action === 'SCHEDULE' ? { p_campaign_id: id, p_scheduled_at: parsed.data.scheduledAt } : { p_campaign_id: id }
+    const { data, error } = await supabase.rpc(rpc, rpcArgs)
+    if (error) return NextResponse.json({ error: 'CAMPAIGN_UPDATE_FAILED' }, { status: 400 })
+    if (data === false) return NextResponse.json({ id, status: action === 'PAUSE' ? 'RUNNING' : 'UNKNOWN', effective: false }, { status: 409 })
+    const status = action === 'START' || action === 'RESUME' ? 'QUEUED' : action === 'PAUSE' ? 'PAUSED' : action === 'SCHEDULE' ? 'SCHEDULED' : 'CANCELLED'
+    return NextResponse.json({ id, status, effective: true, scheduledAt: parsed.data.scheduledAt ?? null })
+  } catch (error) {
+    const message = error instanceof Error && error.message === 'UNAUTHORIZED' ? error.message : 'CAMPAIGN_UPDATE_FAILED'
+    return NextResponse.json({ error: message }, { status: message === 'UNAUTHORIZED' ? 401 : 400 })
+  }
 }

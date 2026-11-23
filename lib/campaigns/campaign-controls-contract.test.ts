@@ -84,6 +84,12 @@ describe('campaign control contracts', () => {
     expect(worker).not.toContain("status: 'QUEUED', claimed_at: null")
   })
 
+  it('does not dispatch scheduled work while the provider or campaign is unsafe', () => {
+    expect(worker.indexOf("await adapter.getConnectionState() !== 'CONNECTED'")).toBeLessThan(worker.indexOf('dispatchMessage'))
+    expect(worker).toContain("campaign.status === 'CANCELLED'")
+    expect(worker).toContain('campaign.pause_requested')
+  })
+
   it('locks campaigns before messages in the claim path', () => {
     const claim = migration.slice(migration.indexOf('create or replace function public.claim_outbox_batch'))
     expect(claim).toContain('order by c.id')

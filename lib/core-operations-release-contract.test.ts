@@ -6,6 +6,7 @@ const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/20261
 const worker = readFileSync(resolve(process.cwd(), 'worker/outbox-worker.ts'), 'utf8')
 const campaignApi = readFileSync(resolve(process.cwd(), 'app/api/campaigns/[id]/route.ts'), 'utf8')
 const campaignCreateApi = readFileSync(resolve(process.cwd(), 'app/api/campaigns/route.ts'), 'utf8')
+const readiness = readFileSync(resolve(process.cwd(), 'lib/ops/processing-readiness.ts'), 'utf8')
 
 describe('core operations release contract', () => {
   it('requires explicit campaign start and gates claims by lifecycle', () => {
@@ -43,5 +44,12 @@ describe('core operations release contract', () => {
     expect(migration).toContain('revoke all on table public.webhook_events from anon, authenticated')
     expect(migration).toContain('revoke all on function public.claim_outbox_batch(integer) from public, anon, authenticated')
     expect(migration).toContain('grant execute on function public.claim_outbox_batch(integer) to service_role')
+  })
+
+  it('gates every action that can enable processing with the same readiness check', () => {
+    expect(campaignApi).toContain('requiresProcessingReadiness(action)')
+    expect(campaignApi).toContain('getProcessingReadiness(supabase)')
+    expect(campaignApi).toContain('processingBlockedReason(readiness)')
+    expect(readiness).toContain("evolutionState === 'CONNECTED' && worker.state === 'RUNNING'")
   })
 })
