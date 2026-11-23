@@ -57,12 +57,36 @@ $$;
 
 create or replace function public.claim_outbox_batch(p_limit integer default 20)
 returns setof public.messages language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_campaign_id uuid;
+  v_campaign_ids uuid[] := '{}'::uuid[];
 begin
+  -- All campaign control RPCs lock campaigns before messages. Claim must do
+  -- the same; locking message rows first would deadlock with cancel_campaign.
+  for v_campaign_id in
+    select c.id
+    from public.campaigns c
+    where c.status in ('QUEUED','RUNNING','SCHEDULED')
+      and not c.pause_requested
+      and exists (
+        select 1 from public.messages m
+        where m.campaign_id = c.id and m.status = 'QUEUED' and m.available_at <= now()
+      )
+    order by c.id
+    for update skip locked
+    limit greatest(1, least(p_limit, 100))
+  loop
+    v_campaign_ids := array_append(v_campaign_ids, v_campaign_id);
+  end loop;
+
   return query
   with candidates as (
     select m.id from public.messages m
     where m.status = 'QUEUED' and m.available_at <= now()
-      and (m.campaign_id is null or exists (select 1 from public.campaigns c where c.id = m.campaign_id and c.owner_id = m.owner_id and c.status in ('QUEUED','RUNNING','SCHEDULED') and not c.pause_requested))
+      and (
+        m.campaign_id is null
+        or m.campaign_id = any(v_campaign_ids)
+      )
       and (m.sequence_id is null or (exists (select 1 from public.message_sequences s where s.id = m.sequence_id and s.owner_id = m.owner_id and s.status in ('QUEUED','SENDING')) and (m.sequence_index = 0 or exists (select 1 from public.messages previous where previous.sequence_id = m.sequence_id and previous.sequence_index = m.sequence_index - 1 and previous.status = 'SENT'))))
     order by m.available_at, m.created_at, m.id for update skip locked limit greatest(1, least(p_limit, 100))
   ), claimed as (

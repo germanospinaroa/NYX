@@ -79,4 +79,13 @@ describe('campaign control contracts', () => {
     expect(worker).toContain("supabase.rpc('release_claimed_message'")
     expect(worker).not.toContain("status: 'QUEUED', claimed_at: null")
   })
+
+  it('locks campaigns before messages in the claim path', () => {
+    const claim = migration.slice(migration.indexOf('create or replace function public.claim_outbox_batch'))
+    expect(claim).toContain('order by c.id')
+    expect(claim).toContain('for update skip locked')
+    expect(claim.indexOf('order by c.id')).toBeLessThan(claim.indexOf('with candidates as'))
+    expect(claim.indexOf('with candidates as')).toBeLessThan(claim.indexOf('order by m.available_at'))
+    expect(claim).toContain('m.campaign_id = any(v_campaign_ids)')
+  })
 })
