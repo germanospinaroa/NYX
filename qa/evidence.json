@@ -9,7 +9,7 @@
   "checks": [
     { "name": "typecheck", "command": "npm run typecheck", "result": "PASS", "environment": "local" },
     { "name": "lint", "command": "npm run lint", "result": "PASS_WITH_WARNINGS", "details": "0 errors; 5 existing warnings in the individual message composer" },
-    { "name": "unit_and_contract_tests", "command": "npm test -- --run", "result": "PASS", "details": "48 files, 157 tests" },
+    { "name": "unit_and_contract_tests", "command": "npm test -- --run", "result": "PASS", "details": "48 files, 159 tests" },
     { "name": "production_build", "command": "npm run build", "result": "PASS", "details": "Next.js 16.4.6 compiled successfully, passed TypeScript, static generation and route collection." },
     { "name": "browser_responsive_390", "viewport": "390x844", "command": "npx playwright screenshot --viewport-size=390,844 http://localhost:3000/login qa/login-390.png", "result": "PASS", "details": "Unauthenticated login surface captured; campaign workspace requires an owner session." },
     { "name": "browser_responsive_768", "viewport": "768x1024", "command": "npx playwright screenshot --viewport-size=768,1024 http://localhost:3000/login qa/login-768.png", "result": "PASS", "details": "Unauthenticated login surface captured; campaign workspace requires an owner session." },

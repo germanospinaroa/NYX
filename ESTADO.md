@@ -143,6 +143,13 @@ reconciliación y aplicación remota. Next.js quedó actualizado localmente de
 16.4.0 a 16.4.6 junto con `eslint-config-next`; el build local pasa. No se
 desplegó Vercel, no se actualizó el VPS y no se enviaron mensajes reales.
 
+Revisión crítica posterior: la edición READY fue alineada con
+`create_campaign_with_variants` en elegibilidad directa desde `contacts`,
+`permission_status_snapshot = null`, validaciones de texto/media/audio/caption,
+resolución de variables, asignación de variantes por género y snapshots. Se
+añadieron fixtures contractuales para contactos sin permiso, OPTED_IN,
+OPTED_OUT y géneros MALE/FEMALE/UNKNOWN. La migración continúa sin aplicar.
+
 Campaign Live Monitor V1 implementado localmente: polling sin solapamientos,
 resumen por recipient, detalle de pasos y estados públicos sanitizados. `SENT`
 representa aceptación del dispatch por el proveedor, no entrega ni lectura.
