@@ -15,7 +15,7 @@ trap 'rm -rf "$tmp_dir"' EXIT
 
 psql_args=("$database_url" -X -v ON_ERROR_STOP=1 -v "schema=$schema" -qAt)
 
-psql "${psql_args[@]}" <<'SQL'
+psql "${psql_args[@]}" <<SQL
 create schema :"schema";
 create table :"schema".campaigns (
   id integer primary key,
@@ -32,59 +32,59 @@ insert into :"schema".campaigns values (1, 'QUEUED', false);
 insert into :"schema".messages values (1, 1, 'QUEUED', null);
 
 create or replace function :"schema".claim_one(p_pause numeric default 0)
-returns integer language plpgsql as $fn$
+returns integer language plpgsql as \$fn\$
 declare v_campaign_id integer; v_message_id integer;
 begin
   select c.id into v_campaign_id
-  from :"schema".campaigns c
+  from campaigns c
   where c.status in ('QUEUED','RUNNING') and not c.pause_requested
-    and exists (select 1 from :"schema".messages m where m.campaign_id = c.id and m.status = 'QUEUED')
+    and exists (select 1 from messages m where m.campaign_id = c.id and m.status = 'QUEUED')
   order by c.id for update skip locked limit 1;
   if v_campaign_id is null then return null; end if;
   perform pg_sleep(p_pause);
-  select m.id into v_message_id from :"schema".messages m
+  select m.id into v_message_id from messages m
   where m.campaign_id = v_campaign_id and m.status = 'QUEUED'
   order by m.id for update skip locked limit 1;
   if v_message_id is null then return null; end if;
-  update :"schema".messages set status = 'SENDING', claimed_at = clock_timestamp() where id = v_message_id;
-  update :"schema".campaigns set status = 'RUNNING' where id = v_campaign_id and status in ('QUEUED','RUNNING') and not pause_requested;
+  update messages set status = 'SENDING', claimed_at = clock_timestamp() where id = v_message_id;
+  update campaigns set status = 'RUNNING' where id = v_campaign_id and status in ('QUEUED','RUNNING') and not pause_requested;
   return v_message_id;
 end;
-$fn$;
+\$fn\$;
 
 create or replace function :"schema".cancel_one(p_pause numeric default 0)
-returns void language plpgsql as $fn$
+returns void language plpgsql as \$fn\$
 begin
-  update :"schema".campaigns set status = 'CANCELLED', pause_requested = false where id = 1 and status in ('QUEUED','RUNNING','PAUSED');
+  update campaigns set status = 'CANCELLED', pause_requested = false where id = 1 and status in ('QUEUED','RUNNING','PAUSED');
   perform pg_sleep(p_pause);
-  update :"schema".messages set status = 'CANCELLED' where campaign_id = 1 and status = 'QUEUED';
+  update messages set status = 'CANCELLED' where campaign_id = 1 and status = 'QUEUED';
 end;
-$fn$;
+\$fn\$;
 
 create or replace function :"schema".pause_one()
-returns void language plpgsql as $fn$
+returns void language plpgsql as \$fn\$
 declare v_active integer;
 begin
-  perform 1 from :"schema".campaigns where id = 1 for update;
-  select count(*) into v_active from :"schema".messages where campaign_id = 1 and status = 'SENDING';
-  update :"schema".campaigns set pause_requested = true, status = case when v_active = 0 then 'PAUSED' else status end where id = 1 and status in ('QUEUED','RUNNING','PAUSED');
+  perform 1 from campaigns where id = 1 for update;
+  select count(*) into v_active from messages where campaign_id = 1 and status = 'SENDING';
+  update campaigns set pause_requested = true, status = case when v_active = 0 then 'PAUSED' else status end where id = 1 and status in ('QUEUED','RUNNING','PAUSED');
 end;
-$fn$;
+\$fn\$;
 
 create or replace function :"schema".release_one()
-returns text language plpgsql as $fn$
+returns text language plpgsql as \$fn\$
 declare v_status text; v_message_status text;
 begin
-  select status into v_status from :"schema".campaigns where id = 1 for update;
-  select status into v_message_status from :"schema".messages where id = 1 for update;
-  if v_status = 'CANCELLED' then update :"schema".messages set status = 'CANCELLED' where id = 1 and status = 'SENDING'; return 'CANCELLED'; end if;
-  update :"schema".messages set status = 'QUEUED', claimed_at = null where id = 1 and status = 'SENDING';
+  select status into v_status from campaigns where id = 1 for update;
+  select status into v_message_status from messages where id = 1 for update;
+  if v_status = 'CANCELLED' then update messages set status = 'CANCELLED' where id = 1 and status = 'SENDING'; return 'CANCELLED'; end if;
+  update messages set status = 'QUEUED', claimed_at = null where id = 1 and status = 'SENDING';
   return 'QUEUED';
 end;
-$fn$;
+\$fn\$;
 SQL
 
-run_sql() { psql "${psql_args[@]}" -c "$1"; }
+run_sql() { psql "${psql_args[@]}" -c "set search_path to \"$schema\", public; $1"; }
 reset_fixture() { run_sql "update \"$schema\".campaigns set status='QUEUED', pause_requested=false; update \"$schema\".messages set status='QUEUED', claimed_at=null;" >/dev/null; }
 assert_state() {
   local expected=$1
