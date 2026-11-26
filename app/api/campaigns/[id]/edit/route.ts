@@ -35,7 +35,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const parsed = schema.safeParse(await request.json())
     if (!parsed.success) return NextResponse.json({ error: 'INVALID_CAMPAIGN' }, { status: 422 })
     const { data, error } = await supabase.rpc('update_campaign_with_variants', { p_campaign_id: id, p_name: parsed.data.name ?? null, p_variants: parsed.data.variants, p_contact_ids: parsed.data.selection.contactIds })
-    if (error) return NextResponse.json({ error: error.message.includes('CAMPAIGN_EDIT_CLOSED') ? 'CAMPAIGN_EDIT_CLOSED' : 'CAMPAIGN_UPDATE_FAILED' }, { status: error.message.includes('CAMPAIGN_EDIT_CLOSED') ? 409 : 400 })
+    if (error) {
+      const code = error.message.includes('CAMPAIGN_EDIT_CLOSED') ? 'CAMPAIGN_EDIT_CLOSED' : error.message.includes('MISSING_MESSAGE_FOR_GENDER') ? 'MISSING_MESSAGE_FOR_GENDER' : error.message.includes('VARIANT_STEP_COUNT_MISMATCH') ? 'VARIANT_STEP_COUNT_MISMATCH' : error.message.includes('VARIANT_STEP_TYPE_MISMATCH') ? 'VARIANT_STEP_TYPE_MISMATCH' : error.message.includes('INVALID_AUDIO_MIME') ? 'INVALID_AUDIO_MIME' : 'CAMPAIGN_UPDATE_FAILED'
+      return NextResponse.json({ error: code }, { status: code === 'CAMPAIGN_EDIT_CLOSED' ? 409 : 400 })
+    }
     return NextResponse.json({ campaign: data })
   } catch (error) {
     const unauthorized = error instanceof Error && error.message === 'UNAUTHORIZED'

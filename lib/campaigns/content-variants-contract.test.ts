@@ -7,6 +7,7 @@ const api = readFileSync('app/api/campaigns/route.ts', 'utf8')
 const detail = readFileSync('app/api/campaigns/[id]/route.ts', 'utf8')
 const coverageMigration = readFileSync('supabase/migrations/20261125000000_gender_aware_campaign_validation.sql', 'utf8')
 const permissionMigration = readFileSync('supabase/migrations/20261126000000_remove_legacy_permission_snapshot_check.sql', 'utf8')
+const editCoverageMigration = readFileSync('supabase/migrations/20261127000000_gender_aware_campaign_edit_validation.sql', 'utf8')
 
 describe('campaign content variants v1 contract', () => {
   it('adds variant-aware immutable snapshot columns and uniqueness', () => {
@@ -55,5 +56,13 @@ describe('campaign content variants v1 contract', () => {
   it('removes the obsolete OPTED_IN snapshot constraint', () => {
     expect(permissionMigration).toContain('drop constraint if exists campaign_recipients_permission_snapshot_check')
     expect(api).toContain('CAMPAIGN_PERMISSION_SCHEMA_MISMATCH')
+  })
+
+  it('applies gender-aware coverage to editing sequences from one through five steps', () => {
+    expect(editCoverageMigration).toContain('update_campaign_with_variants')
+    expect(editCoverageMigration).toContain('MISSING_MESSAGE_FOR_GENDER')
+    expect(editCoverageMigration).not.toContain("nullif(btrim(v_step->>'neutralText'), '') is null or length")
+    expect(editCoverageMigration).toContain('v_step_count < 1 or v_step_count > 50')
+    expect(readFileSync('app/api/campaigns/[id]/edit/route.ts', 'utf8')).toContain('MISSING_MESSAGE_FOR_GENDER')
   })
 })
