@@ -38,7 +38,10 @@ export async function POST(request: Request) {
     if (!parsed.success) return NextResponse.json({ error: 'INVALID_CONTACT' }, { status: 422 })
     const region = process.env.DEFAULT_PHONE_REGION ?? 'CO'
     const normalized = normalizePhone(parsed.data.phone, region)
-    if ('errorCode' in normalized) return NextResponse.json({ error: 'INVALID_PHONE' }, { status: 422 })
+    if ('errorCode' in normalized) {
+      console.info('CONTACT_PHONE_REJECTED', { reason: 'INVALID_PHONE', countryHint: region })
+      return NextResponse.json({ error: 'INVALID_PHONE' }, { status: 422 })
+    }
     const firstName = parsed.data.name.trim().split(/\s+/u)[0]
     if (parsed.data.labelIds.length) {
       const { data: ownedLabels, error: labelsError } = await supabase.from('labels').select('id').eq('owner_id', user.id).in('id', parsed.data.labelIds)

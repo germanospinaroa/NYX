@@ -11,7 +11,7 @@ export function normalizePhone(rawValue: string, defaultRegion: string): PhoneNo
   const candidate = raw.replace(/^00(?=\d)/, '+')
   try {
     const phone = parsePhoneNumber(candidate, defaultRegion as never)
-    if (!phone || !phone.isValid()) return { errorCode: 'INVALID_PHONE' }
+    if (!phone || phone.ext || !/^\+[1-9]\d{7,14}$/u.test(phone.number) || !phone.isPossible()) return { errorCode: 'INVALID_PHONE' }
     return { e164: phone.number, country: phone.country }
   } catch {
     return { errorCode: 'INVALID_PHONE' }
