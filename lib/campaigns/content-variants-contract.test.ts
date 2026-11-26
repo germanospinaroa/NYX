@@ -5,6 +5,7 @@ const migration = readFileSync('supabase/migrations/20261010120000_campaign_cont
 const form = readFileSync('app/app/campaigns/new/campaign-form.tsx', 'utf8')
 const api = readFileSync('app/api/campaigns/route.ts', 'utf8')
 const detail = readFileSync('app/api/campaigns/[id]/route.ts', 'utf8')
+const coverageMigration = readFileSync('supabase/migrations/20261125000000_gender_aware_campaign_validation.sql', 'utf8')
 
 describe('campaign content variants v1 contract', () => {
   it('adds variant-aware immutable snapshot columns and uniqueness', () => {
@@ -39,5 +40,14 @@ describe('campaign content variants v1 contract', () => {
     expect(api).toContain("rpc('create_campaign_with_variants'")
     expect(detail).toContain('content_variant_key')
     expect(detail).toContain('variantSummaries')
+  })
+
+  it('allows gender-complete audiences without neutral text and protects unknown genders', () => {
+    expect(coverageMigration).toContain('MISSING_MESSAGE_FOR_GENDER')
+    expect(coverageMigration).toContain("coalesce(nullif(btrim(v_step->>'maleText'), ''), nullif(btrim(v_step->>'neutralText'), ''))")
+    expect(coverageMigration).toContain("coalesce(nullif(btrim(v_step->>'femaleText'), ''), nullif(btrim(v_step->>'neutralText'), ''))")
+    expect(form).toContain('findCoverageIssues')
+    expect(form).toContain('genderCounts')
+    expect(api).toContain("neutralText: z.string().trim().max(10000).optional()")
   })
 })

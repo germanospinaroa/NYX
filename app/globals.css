@@ -289,6 +289,7 @@ input[type=color] { width: 40px; min-height: 40px; padding: 3px; cursor: pointer
 .icon-button:hover:not(:disabled) { color: var(--nyx-ink); background: var(--nyx-surface-subtle); }
 .inline-alert, .toast { display: flex; align-items: center; gap: 8px; padding: 11px 13px; border-radius: 9px; font-size: 13px; }
 .inline-alert { border: 1px solid #f1c8c4; color: var(--nyx-danger); background: #fff7f6; }
+.field-error { display: block; margin-top: 4px; color: var(--nyx-danger); font-size: 12px; }
 .toast { border: 1px solid #bce3d4; color: var(--nyx-success); background: #f2fbf7; }
 .empty-state { display: grid; justify-items: center; gap: 7px; padding: 72px 20px; border: 1px dashed var(--nyx-border-strong); border-radius: 12px; text-align: center; }
 .empty-state h2, .empty-state p { margin: 0; }
