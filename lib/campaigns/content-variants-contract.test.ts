@@ -6,6 +6,7 @@ const form = readFileSync('app/app/campaigns/new/campaign-form.tsx', 'utf8')
 const api = readFileSync('app/api/campaigns/route.ts', 'utf8')
 const detail = readFileSync('app/api/campaigns/[id]/route.ts', 'utf8')
 const coverageMigration = readFileSync('supabase/migrations/20261125000000_gender_aware_campaign_validation.sql', 'utf8')
+const permissionMigration = readFileSync('supabase/migrations/20261126000000_remove_legacy_permission_snapshot_check.sql', 'utf8')
 
 describe('campaign content variants v1 contract', () => {
   it('adds variant-aware immutable snapshot columns and uniqueness', () => {
@@ -49,5 +50,10 @@ describe('campaign content variants v1 contract', () => {
     expect(form).toContain('findCoverageIssues')
     expect(form).toContain('genderCounts')
     expect(api).toContain("neutralText: z.string().trim().max(10000).optional()")
+  })
+
+  it('removes the obsolete OPTED_IN snapshot constraint', () => {
+    expect(permissionMigration).toContain('drop constraint if exists campaign_recipients_permission_snapshot_check')
+    expect(api).toContain('CAMPAIGN_PERMISSION_SCHEMA_MISMATCH')
   })
 })
